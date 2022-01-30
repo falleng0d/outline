@@ -100,7 +100,7 @@ const Sticky = styled.div`
   min-width: 204px;
   width: 204px;
   min-height: 40px;
-  overflow-y: auto;
+  overflow-y: visible;
 `;
 
 const Heading = styled.h3`
