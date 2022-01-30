@@ -10,8 +10,8 @@ type Props = {
 function Branding({ href = env.URL }: Props) {
   return (
     <Link href={href}>
-      <OutlineLogo size={16} />
-      &nbsp;Outline
+      <OutlineLogo size={24} />
+      &nbsp;matj.dev
     </Link>
   );
 }
@@ -33,6 +33,8 @@ const Link = styled.a`
 
   svg {
     fill: ${(props) => props.theme.text};
+    margin-right: 7px;
+    margin-top: -5px;
   }
 
   &:hover {

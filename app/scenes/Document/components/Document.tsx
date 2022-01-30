@@ -617,9 +617,7 @@ class DocumentScene extends React.Component<Props> {
             </MaxWidth>
           </Container>
         </Background>
-        {isShare && !isCustomDomain() && (
-          <Branding href="//www.getoutline.com?ref=sharelink" />
-        )}
+        {isShare && !isCustomDomain() && <Branding href="//matj.dev" />}
         {!isShare && (
           <>
             <KeyboardShortcutsButton />
