@@ -1,4 +1,5 @@
 import {
+  ArrowIcon,
   DocumentIcon,
   CloseIcon,
   PlusIcon,
@@ -10,9 +11,10 @@ import { setTextSelection } from "prosemirror-utils";
 import { EditorView } from "prosemirror-view";
 import * as React from "react";
 import styled from "styled-components";
-import isUrl from "@shared/editor/lib/isUrl";
+import { isInternalUrl, sanitizeHref } from "@shared/utils/urls";
 import Flex from "~/components/Flex";
 import { Dictionary } from "~/hooks/useDictionary";
+import { ToastOptions } from "~/types";
 import Input from "./Input";
 import LinkSearchResult from "./LinkSearchResult";
 import ToolbarButton from "./ToolbarButton";
@@ -42,7 +44,7 @@ type Props = {
     href: string,
     event: React.MouseEvent<HTMLButtonElement>
   ) => void;
-  onShowToast?: (message: string, code: string) => void;
+  onShowToast: (message: string, options: ToastOptions) => void;
   view: EditorView;
 };
 
@@ -105,21 +107,13 @@ class LinkEditor extends React.Component<Props, State> {
   save = (href: string, title?: string): void => {
     href = href.trim();
 
-    if (href.length === 0) return;
+    if (href.length === 0) {
+      return;
+    }
 
     this.discardInputValue = true;
     const { from, to } = this.props;
-
-    // Make sure a protocol is added to the beginning of the input if it's
-    // likely an absolute URL that was entered without one.
-    if (
-      !isUrl(href) &&
-      !href.startsWith("/") &&
-      !href.startsWith("#") &&
-      !href.startsWith("mailto:")
-    ) {
-      href = `https://${href}`;
-    }
+    href = sanitizeHref(href) ?? "";
 
     this.props.onSelectLink({ href, title, from, to });
   };
@@ -163,7 +157,9 @@ class LinkEditor extends React.Component<Props, State> {
       }
 
       case "ArrowUp": {
-        if (event.shiftKey) return;
+        if (event.shiftKey) {
+          return;
+        }
         event.preventDefault();
         event.stopPropagation();
         const prevIndex = this.state.selectedIndex - 1;
@@ -176,7 +172,9 @@ class LinkEditor extends React.Component<Props, State> {
 
       case "ArrowDown":
       case "Tab": {
-        if (event.shiftKey) return;
+        if (event.shiftKey) {
+          return;
+        }
 
         event.preventDefault();
         event.stopPropagation();
@@ -239,9 +237,13 @@ class LinkEditor extends React.Component<Props, State> {
     const { onCreateLink } = this.props;
 
     value = value.trim();
-    if (value.length === 0) return;
+    if (value.length === 0) {
+      return;
+    }
 
-    if (onCreateLink) return onCreateLink(value);
+    if (onCreateLink) {
+      return onCreateLink(value);
+    }
   };
 
   handleRemoveLink = (): void => {
@@ -289,6 +291,7 @@ class LinkEditor extends React.Component<Props, State> {
 
     const looksLikeUrl = value.match(/^https?:\/\//i);
     const suggestedLinkTitle = this.suggestedLinkTitle;
+    const isInternal = isInternalUrl(value);
 
     const showCreateLink =
       !!this.props.onCreateLink &&
@@ -314,9 +317,15 @@ class LinkEditor extends React.Component<Props, State> {
           autoFocus={this.href === ""}
         />
 
-        <Tooltip tooltip={dictionary.openLink}>
+        <Tooltip
+          tooltip={isInternal ? dictionary.goToLink : dictionary.openLink}
+        >
           <ToolbarButton onClick={this.handleOpenLink} disabled={!value}>
-            <OpenIcon color="currentColor" />
+            {isInternal ? (
+              <ArrowIcon color="currentColor" />
+            ) : (
+              <OpenIcon color="currentColor" />
+            )}
           </ToolbarButton>
         </Tooltip>
         <Tooltip tooltip={dictionary.removeLink}>

@@ -82,25 +82,8 @@ export async function getUserForEmailSigninToken(token: string): Promise<User> {
     }
   }
 
-  const user = await User.findByPk(payload.id, {
-    include: [
-      {
-        model: Team,
-        required: true,
-      },
-    ],
-  });
+  const user = await User.scope("withTeam").findByPk(payload.id);
   invariant(user, "User not found");
-
-  // if user has signed in at all since the token was created then
-  // it's no longer valid, they'll need a new one.
-  if (
-    user.lastSignedInAt &&
-    payload.createdAt &&
-    user.lastSignedInAt > new Date(payload.createdAt)
-  ) {
-    throw AuthenticationError("Token has already been used");
-  }
 
   try {
     JWT.verify(token, user.jwtSecret);

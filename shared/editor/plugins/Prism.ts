@@ -17,6 +17,7 @@ export const LANGUAGES = {
   java: "Java",
   javascript: "JavaScript",
   json: "JSON",
+  mermaidjs: "Mermaid Diagram",
   perl: "Perl",
   php: "PHP",
   powershell: "Powershell",
@@ -24,6 +25,7 @@ export const LANGUAGES = {
   ruby: "Ruby",
   rust: "Rust",
   sql: "SQL",
+  solidity: "Solidity",
   typescript: "TypeScript",
   yaml: "YAML",
 };

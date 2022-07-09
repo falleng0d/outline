@@ -7,6 +7,7 @@ import Document from "~/models/Document";
 import Button from "~/components/Button";
 import Popover from "~/components/Popover";
 import Tooltip from "~/components/Tooltip";
+import useCurrentTeam from "~/hooks/useCurrentTeam";
 import useStores from "~/hooks/useStores";
 import SharePopover from "./SharePopover";
 
@@ -17,15 +18,17 @@ type Props = {
 function ShareButton({ document }: Props) {
   const { t } = useTranslation();
   const { shares } = useStores();
+  const team = useCurrentTeam();
   const share = shares.getByDocumentId(document.id);
   const sharedParent = shares.getByDocumentParents(document.id);
   const isPubliclyShared =
-    (share && share.published) ||
-    (sharedParent && sharedParent.published && !document.isDraft);
+    team.sharing &&
+    (share?.published || (sharedParent?.published && !document.isDraft));
 
   const popover = usePopoverState({
     gutter: 0,
     placement: "bottom-end",
+    unstable_fixed: true,
   });
 
   return (

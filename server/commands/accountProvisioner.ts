@@ -1,11 +1,12 @@
 import invariant from "invariant";
 import { UniqueConstraintError } from "sequelize";
+import WelcomeEmail from "@server/emails/templates/WelcomeEmail";
 import {
   AuthenticationError,
   EmailAuthenticationRequiredError,
   AuthenticationProviderDisabledError,
 } from "@server/errors";
-import mailer from "@server/mailer";
+import { APM } from "@server/logging/tracing";
 import { Collection, Team, User } from "@server/models";
 import teamCreator from "./teamCreator";
 import userCreator from "./userCreator";
@@ -33,6 +34,7 @@ type Props = {
     scopes: string[];
     accessToken?: string;
     refreshToken?: string;
+    expiresIn?: number;
   };
 };
 
@@ -43,7 +45,7 @@ export type AccountProvisionerResult = {
   isNewUser: boolean;
 };
 
-export default async function accountProvisioner({
+async function accountProvisioner({
   ip,
   user: userParams,
   team: teamParams,
@@ -59,6 +61,7 @@ export default async function accountProvisioner({
       subdomain: teamParams.subdomain,
       avatarUrl: teamParams.avatarUrl,
       authenticationProvider: authenticationProviderParams,
+      ip,
     });
   } catch (err) {
     throw AuthenticationError(err.message);
@@ -82,13 +85,16 @@ export default async function accountProvisioner({
       ip,
       authentication: {
         ...authenticationParams,
+        expiresAt: authenticationParams.expiresIn
+          ? new Date(Date.now() + authenticationParams.expiresIn * 1000)
+          : undefined,
         authenticationProviderId: authenticationProvider.id,
       },
     });
     const { isNewUser, user } = result;
 
     if (isNewUser) {
-      await mailer.sendTemplate("welcome", {
+      await WelcomeEmail.schedule({
         to: user.email,
         teamUrl: team.url,
       });
@@ -142,3 +148,8 @@ export default async function accountProvisioner({
     throw err;
   }
 }
+
+export default APM.traceFunction({
+  serviceName: "command",
+  spanName: "accountProvisioner",
+})(accountProvisioner);

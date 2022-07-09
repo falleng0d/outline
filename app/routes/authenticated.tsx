@@ -1,11 +1,10 @@
+import { observer } from "mobx-react";
 import * as React from "react";
 import { Switch, Redirect, RouteComponentProps } from "react-router-dom";
 import Archive from "~/scenes/Archive";
-import Collection from "~/scenes/Collection";
 import DocumentNew from "~/scenes/DocumentNew";
 import Drafts from "~/scenes/Drafts";
 import Error404 from "~/scenes/Error404";
-import Search from "~/scenes/Search";
 import Templates from "~/scenes/Templates";
 import Trash from "~/scenes/Trash";
 import Layout from "~/components/AuthenticatedLayout";
@@ -13,6 +12,8 @@ import CenteredContent from "~/components/CenteredContent";
 import PlaceholderDocument from "~/components/PlaceholderDocument";
 import Route from "~/components/ProfiledRoute";
 import SocketProvider from "~/components/SocketProvider";
+import useCurrentTeam from "~/hooks/useCurrentTeam";
+import usePolicy from "~/hooks/usePolicy";
 import { matchDocumentSlug as slug } from "~/utils/routeHelpers";
 
 const SettingsRoutes = React.lazy(
@@ -29,6 +30,13 @@ const Document = React.lazy(
       "~/scenes/Document"
     )
 );
+const Collection = React.lazy(
+  () =>
+    import(
+      /* webpackChunkName: "collection" */
+      "~/scenes/Collection"
+    )
+);
 const Home = React.lazy(
   () =>
     import(
@@ -36,8 +44,13 @@ const Home = React.lazy(
       "~/scenes/Home"
     )
 );
-
-const NotFound = () => <Search notFound />;
+const Search = React.lazy(
+  () =>
+    import(
+      /* webpackChunkName: "search" */
+      "~/scenes/Search"
+    )
+);
 
 const RedirectDocument = ({
   match,
@@ -49,7 +62,10 @@ const RedirectDocument = ({
   />
 );
 
-export default function AuthenticatedRoutes() {
+function AuthenticatedRoutes() {
+  const team = useCurrentTeam();
+  const can = usePolicy(team.id);
+
   return (
     <SocketProvider>
       <Layout>
@@ -61,14 +77,24 @@ export default function AuthenticatedRoutes() {
           }
         >
           <Switch>
+            {can.createDocument && (
+              <Route exact path="/templates" component={Templates} />
+            )}
+            {can.createDocument && (
+              <Route exact path="/templates/:sort" component={Templates} />
+            )}
+            {can.createDocument && (
+              <Route exact path="/drafts" component={Drafts} />
+            )}
+            {can.createDocument && (
+              <Route exact path="/archive" component={Archive} />
+            )}
+            {can.createDocument && (
+              <Route exact path="/trash" component={Trash} />
+            )}
             <Redirect from="/dashboard" to="/home" />
             <Route path="/home/:tab" component={Home} />
             <Route path="/home" component={Home} />
-            <Route exact path="/templates" component={Templates} />
-            <Route exact path="/templates/:sort" component={Templates} />
-            <Route exact path="/drafts" component={Drafts} />
-            <Route exact path="/archive" component={Archive} />
-            <Route exact path="/trash" component={Trash} />
             <Redirect exact from="/starred" to="/home" />
             <Redirect exact from="/collections/*" to="/collection/*" />
             <Route exact path="/collection/:id/new" component={DocumentNew} />
@@ -86,10 +112,12 @@ export default function AuthenticatedRoutes() {
             <Route exact path="/search/:term" component={Search} />
             <Route path="/404" component={Error404} />
             <SettingsRoutes />
-            <Route component={NotFound} />
-          </Switch>{" "}
+            <Route component={Error404} />
+          </Switch>
         </React.Suspense>
       </Layout>
     </SocketProvider>
   );
 }
+
+export default observer(AuthenticatedRoutes);

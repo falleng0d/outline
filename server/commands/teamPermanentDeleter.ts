@@ -1,6 +1,7 @@
 import { Transaction } from "sequelize";
 import { sequelize } from "@server/database/sequelize";
-import Logger from "@server/logging/logger";
+import Logger from "@server/logging/Logger";
+import { APM } from "@server/logging/tracing";
 import {
   ApiKey,
   Attachment,
@@ -20,7 +21,7 @@ import {
   Share,
 } from "@server/models";
 
-export default async function teamPermanentDeleter(team: Team) {
+async function teamPermanentDeleter(team: Team) {
   if (!team.deletedAt) {
     throw new Error(
       `Cannot permanently delete ${team.id} team. Please delete it and try again.`
@@ -36,7 +37,7 @@ export default async function teamPermanentDeleter(team: Team) {
 
   try {
     transaction = await sequelize.transaction();
-    await Attachment.findAllInBatches(
+    await Attachment.findAllInBatches<Attachment>(
       {
         where: {
           teamId,
@@ -61,7 +62,7 @@ export default async function teamPermanentDeleter(team: Team) {
       }
     );
     // Destroy user-relation models
-    await User.findAllInBatches(
+    await User.findAllInBatches<User>(
       {
         attributes: ["id"],
         where: {
@@ -82,6 +83,13 @@ export default async function teamPermanentDeleter(team: Team) {
         await ApiKey.destroy({
           where: {
             userId: userIds,
+          },
+          force: true,
+          transaction,
+        });
+        await Event.destroy({
+          where: {
+            actorId: userIds,
           },
           force: true,
           transaction,
@@ -196,3 +204,8 @@ export default async function teamPermanentDeleter(team: Team) {
     throw err;
   }
 }
+
+export default APM.traceFunction({
+  serviceName: "command",
+  spanName: "teamPermanentDeleter",
+})(teamPermanentDeleter);

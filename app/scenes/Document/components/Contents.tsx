@@ -1,7 +1,8 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import styled from "styled-components";
 import breakpoint from "styled-components-breakpoint";
-import HelpText from "~/components/HelpText";
+import Text from "~/components/Text";
 import useWindowScrollPosition from "~/hooks/useWindowScrollPosition";
 
 const HEADING_OFFSET = 20;
@@ -48,11 +49,12 @@ export default function Contents({ headings, isFullWidth }: Props) {
     Infinity
   );
   const headingAdjustment = minHeading - 1;
+  const { t } = useTranslation();
 
   return (
     <Wrapper isFullWidth={isFullWidth}>
       <Sticky>
-        <Heading>Contents</Heading>
+        <Heading>{t("Contents")}</Heading>
         {headings.length ? (
           <List>
             {headings.map((heading) => (
@@ -66,7 +68,9 @@ export default function Contents({ headings, isFullWidth }: Props) {
             ))}
           </List>
         ) : (
-          <Empty>Headings you add to the document will appear here</Empty>
+          <Empty>
+            {t("Headings you add to the document will appear here")}
+          </Empty>
         )}
       </Sticky>
     </Wrapper>
@@ -111,7 +115,7 @@ const Heading = styled.h3`
   letter-spacing: 0.04em;
 `;
 
-const Empty = styled(HelpText)`
+const Empty = styled(Text)`
   margin: 1em 0 4em;
   padding-right: 2em;
   font-size: 14px;

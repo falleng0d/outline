@@ -22,7 +22,7 @@ export const assertIn = (
   message?: string
 ) => {
   if (!options.includes(value)) {
-    throw ValidationError(message);
+    throw ValidationError(message ?? `Must be one of ${options.join(", ")}`);
   }
 };
 
@@ -36,8 +36,10 @@ export const assertSort = (
   }
 };
 
-export const assertNotEmpty = (value: unknown, message?: string) => {
-  if (value === "") {
+export const assertNotEmpty = (value: unknown, message: string) => {
+  assertPresent(value, message);
+
+  if (typeof value === "string" && value.trim() === "") {
     throw ValidationError(message);
   }
 };

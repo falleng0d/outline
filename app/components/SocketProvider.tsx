@@ -6,6 +6,7 @@ import * as React from "react";
 import io from "socket.io-client";
 import RootStore from "~/stores/RootStore";
 import withStores from "~/components/withStores";
+import { AuthorizationError, NotFoundError } from "~/utils/errors";
 import { getVisibilityListener, getPageVisible } from "~/utils/pageVisibility";
 
 type SocketWithAuthentication = {
@@ -22,9 +23,7 @@ export const SocketContext: any = React.createContext<SocketWithAuthentication |
   null
 );
 
-type Props = RootStore & {
-  children: React.ReactNode;
-};
+type Props = RootStore;
 
 @observer
 class SocketProvider extends React.Component<Props> {
@@ -46,7 +45,7 @@ class SocketProvider extends React.Component<Props> {
   }
 
   checkConnection = () => {
-    if (this.socket && this.socket.disconnected && getPageVisible()) {
+    if (this.socket?.disconnected && getPageVisible()) {
       // null-ifying this reference is important, do not remove. Without it
       // references to old sockets are potentially held in context
       this.socket.close();
@@ -79,7 +78,9 @@ class SocketProvider extends React.Component<Props> {
       views,
       fileOperations,
     } = this.props;
-    if (!auth.token) return;
+    if (!auth.token) {
+      return;
+    }
 
     this.socket.on("connect", () => {
       // immediately send current users token to the websocket backend where it
@@ -100,10 +101,9 @@ class SocketProvider extends React.Component<Props> {
     // connection may have failed (caused by proxy, firewall, browser, ...)
     this.socket.on("reconnect_attempt", () => {
       if (this.socket) {
-        this.socket.io.opts.transports =
-          auth.team && auth.team.domain
-            ? ["websocket"]
-            : ["websocket", "polling"];
+        this.socket.io.opts.transports = auth?.team?.domain
+          ? ["websocket"]
+          : ["websocket", "polling"];
       }
     });
 
@@ -155,7 +155,10 @@ class SocketProvider extends React.Component<Props> {
               force: true,
             });
           } catch (err) {
-            if (err.statusCode === 404 || err.statusCode === 403) {
+            if (
+              err instanceof AuthorizationError ||
+              err instanceof NotFoundError
+            ) {
               documents.remove(documentId);
               return;
             }
@@ -186,11 +189,9 @@ class SocketProvider extends React.Component<Props> {
       if (event.collectionIds) {
         for (const collectionDescriptor of event.collectionIds) {
           const collectionId = collectionDescriptor.id;
-          const collection = collections.get(collectionId) || {};
+          const collection = collections.get(collectionId);
 
           if (event.event === "collections.delete") {
-            const collection = collections.get(collectionId);
-
             if (collection) {
               collection.deletedAt = collectionDescriptor.updatedAt;
             }
@@ -209,10 +210,8 @@ class SocketProvider extends React.Component<Props> {
 
           // if we already have the latest version (it was us that performed
           // the change) then we don't need to update anything either.
-          // @ts-expect-error ts-migrate(2339) FIXME: Property 'updatedAt' does not exist on type '{}'.
-          const { updatedAt } = collection;
 
-          if (updatedAt === collectionDescriptor.updatedAt) {
+          if (collection?.updatedAt === collectionDescriptor.updatedAt) {
             continue;
           }
 
@@ -221,7 +220,10 @@ class SocketProvider extends React.Component<Props> {
               force: true,
             });
           } catch (err) {
-            if (err.statusCode === 404 || err.statusCode === 403) {
+            if (
+              err instanceof AuthorizationError ||
+              err instanceof NotFoundError
+            ) {
               documents.removeCollectionDocuments(collectionId);
               memberships.removeCollectionMemberships(collectionId);
               collections.remove(collectionId);
@@ -250,7 +252,10 @@ class SocketProvider extends React.Component<Props> {
               force: true,
             });
           } catch (err) {
-            if (err.statusCode === 404 || err.statusCode === 403) {
+            if (
+              err instanceof AuthorizationError ||
+              err instanceof NotFoundError
+            ) {
               groups.remove(groupId);
             }
           }
@@ -326,14 +331,17 @@ class SocketProvider extends React.Component<Props> {
       }
     });
 
+    this.socket.on("fileOperations.create", async (event: any) => {
+      const user = auth.user;
+      if (user) {
+        fileOperations.add({ ...event, user });
+      }
+    });
+
     this.socket.on("fileOperations.update", async (event: any) => {
       const user = auth.user;
-      let collection = null;
-      if (event.collectionId)
-        collection = await collections.fetch(event.collectionId);
-
       if (user) {
-        fileOperations.add({ ...event, user, collection });
+        fileOperations.add({ ...event, user });
       }
     });
 

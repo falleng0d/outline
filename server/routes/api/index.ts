@@ -9,6 +9,7 @@ import attachments from "./attachments";
 import auth from "./auth";
 import authenticationProviders from "./authenticationProviders";
 import collections from "./collections";
+import utils from "./cron";
 import documents from "./documents";
 import events from "./events";
 import fileOperationsRoute from "./fileOperations";
@@ -25,8 +26,8 @@ import shares from "./shares";
 import stars from "./stars";
 import team from "./team";
 import users from "./users";
-import utils from "./utils";
 import views from "./views";
+import webhookSubscriptions from "./webhookSubscriptions";
 
 const api = new Koa();
 const router = new Router();
@@ -67,6 +68,7 @@ router.use("/", attachments.routes());
 router.use("/", utils.routes());
 router.use("/", groups.routes());
 router.use("/", fileOperationsRoute.routes());
+router.use("/", webhookSubscriptions.routes());
 
 router.post("*", (ctx) => {
   ctx.throw(NotFoundError("Endpoint not found"));

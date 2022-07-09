@@ -3,15 +3,16 @@ import { observable } from "mobx";
 import { observer } from "mobx-react";
 import * as React from "react";
 import { withTranslation, Trans, WithTranslation } from "react-i18next";
+import { MAX_TITLE_LENGTH } from "@shared/constants";
 import RootStore from "~/stores/RootStore";
 import Collection from "~/models/Collection";
 import Button from "~/components/Button";
 import Flex from "~/components/Flex";
-import HelpText from "~/components/HelpText";
 import IconPicker, { icons } from "~/components/IconPicker";
 import Input from "~/components/Input";
 import InputSelectPermission from "~/components/InputSelectPermission";
 import Switch from "~/components/Switch";
+import Text from "~/components/Text";
 import withStores from "~/components/withStores";
 import history from "~/utils/history";
 
@@ -115,18 +116,19 @@ class CollectionNew extends React.Component<Props> {
     const teamSharingEnabled = !!auth.team && auth.team.sharing;
     return (
       <form onSubmit={this.handleSubmit}>
-        <HelpText>
+        <Text type="secondary">
           <Trans>
             Collections are for grouping your documents. They work best when
             organized around a topic or internal team — Product or Engineering
             for example.
           </Trans>
-        </HelpText>
+        </Text>
         <Flex gap={8}>
           <Input
             type="text"
             label={t("Name")}
             onChange={this.handleNameChange}
+            maxLength={MAX_TITLE_LENGTH}
             value={this.name}
             required
             autoFocus

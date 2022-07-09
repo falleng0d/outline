@@ -9,11 +9,19 @@ if (env.SENTRY_DSN) {
     release: env.RELEASE,
     maxBreadcrumbs: 0,
     ignoreErrors: [
-      // emitted by Koa when bots attempt to snoop on paths such as wp-admin
-      // or the user client submits a bad request. These are expected in normal
-      // running of the application and don't need to be reported.
+      // These errors are expected in normal running of the application and
+      // don't need to be reported.
+      // Validation
       "BadRequestError",
+      "SequelizeValidationError",
+      "ValidationError",
+
+      // Authentication
       "UnauthorizedError",
+      "TeamDomainRequiredError",
+      "GmailAccountCreationError",
+      "AuthRedirectError",
+      "UserSuspendedError",
     ],
   });
 }
@@ -27,7 +35,7 @@ export function requestErrorHandler(error: any, ctx: ContextWithState) {
     return;
   }
 
-  if (process.env.SENTRY_DSN) {
+  if (env.SENTRY_DSN) {
     Sentry.withScope(function (scope) {
       const requestId = ctx.headers["x-request-id"];
 
@@ -35,15 +43,17 @@ export function requestErrorHandler(error: any, ctx: ContextWithState) {
         scope.setTag("request_id", requestId as string);
       }
 
-      const authType = ctx.state ? ctx.state.authType : undefined;
-
+      const authType = ctx.state?.authType ?? undefined;
       if (authType) {
         scope.setTag("auth_type", authType);
       }
 
-      const userId =
-        ctx.state && ctx.state.user ? ctx.state.user.id : undefined;
+      const teamId = ctx.state?.user?.teamId ?? undefined;
+      if (teamId) {
+        scope.setTag("team_id", teamId);
+      }
 
+      const userId = ctx.state?.user?.id ?? undefined;
       if (userId) {
         scope.setUser({
           id: userId,

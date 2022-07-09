@@ -10,13 +10,17 @@ import Share from "~/models/Share";
 import Button from "~/components/Button";
 import CopyToClipboard from "~/components/CopyToClipboard";
 import Flex from "~/components/Flex";
-import HelpText from "~/components/HelpText";
 import Input from "~/components/Input";
 import Notice from "~/components/Notice";
 import Switch from "~/components/Switch";
+import Text from "~/components/Text";
+import useCurrentTeam from "~/hooks/useCurrentTeam";
 import useKeyDown from "~/hooks/useKeyDown";
+import usePolicy from "~/hooks/usePolicy";
 import useStores from "~/hooks/useStores";
 import useToasts from "~/hooks/useToasts";
+import useUserLocale from "~/hooks/useUserLocale";
+import { dateLocale } from "~/utils/i18n";
 
 type Props = {
   document: Document;
@@ -33,33 +37,35 @@ function SharePopover({
   onRequestClose,
   visible,
 }: Props) {
+  const team = useCurrentTeam();
   const { t } = useTranslation();
-  const { policies, shares, auth } = useStores();
+  const { shares } = useStores();
   const { showToast } = useToasts();
   const [isCopied, setIsCopied] = React.useState(false);
   const timeout = React.useRef<ReturnType<typeof setTimeout>>();
   const buttonRef = React.useRef<HTMLButtonElement>(null);
-  const can = policies.abilities(share ? share.id : "");
-  const documentAbilities = policies.abilities(document.id);
+  const can = usePolicy(share ? share.id : "");
+  const documentAbilities = usePolicy(document.id);
   const canPublish =
     can.update &&
     !document.isTemplate &&
-    auth.team?.sharing &&
+    team.sharing &&
     documentAbilities.share;
   const isPubliclyShared =
-    (share && share.published) ||
-    (sharedParent && sharedParent.published && !document.isDraft);
+    team.sharing &&
+    ((share && share.published) ||
+      (sharedParent && sharedParent.published && !document.isDraft));
 
   useKeyDown("Escape", onRequestClose);
 
   React.useEffect(() => {
-    if (visible) {
+    if (visible && team.sharing) {
       document.share();
       buttonRef.current?.focus();
     }
 
     return () => (timeout.current ? clearTimeout(timeout.current) : undefined);
-  }, [document, visible]);
+  }, [document, visible, team.sharing]);
 
   const handlePublishedChange = React.useCallback(
     async (event) => {
@@ -108,6 +114,12 @@ function SharePopover({
     }, 250);
   }, [t, onRequestClose, showToast]);
 
+  const userLocale = useUserLocale();
+  const locale = userLocale ? dateLocale(userLocale) : undefined;
+  const shareUrl = team.sharing
+    ? share?.url ?? ""
+    : `${team.url}${document.url}`;
+
   return (
     <>
       <Heading>
@@ -155,6 +167,7 @@ function SharePopover({
                       Date.parse(share?.lastAccessedAt),
                       {
                         addSuffix: true,
+                        locale,
                       }
                     ),
                   })}
@@ -164,7 +177,9 @@ function SharePopover({
           </SwitchLabel>
         </SwitchWrapper>
       ) : (
-        <HelpText>{t("Only team members with permission can view")}</HelpText>
+        <Text type="secondary">
+          {t("Only team members with permission can view")}
+        </Text>
       )}
 
       {canPublish && share?.published && !document.isDraft && (
@@ -190,14 +205,14 @@ function SharePopover({
           type="text"
           label={t("Link")}
           placeholder={`${t("Loading")}…`}
-          value={share ? share.url : ""}
+          value={shareUrl}
           labelHidden
           readOnly
         />
-        <CopyToClipboard text={share ? share.url : ""} onCopy={handleCopied}>
+        <CopyToClipboard text={shareUrl} onCopy={handleCopied}>
           <Button
             type="submit"
-            disabled={isCopied || !share}
+            disabled={isCopied || (!share && team.sharing)}
             ref={buttonRef}
             primary
           >
@@ -231,7 +246,7 @@ const SwitchLabel = styled(Flex)`
   }
 `;
 
-const SwitchText = styled(HelpText)`
+const SwitchText = styled(Text)`
   margin: 0;
   font-size: 15px;
 `;

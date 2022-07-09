@@ -1,5 +1,7 @@
+import { v4 as uuidv4 } from "uuid";
+import { TeamDomain } from "@server/models";
 import { buildUser, buildTeam, buildInvite } from "@server/test/factories";
-import { flushdb } from "@server/test/support";
+import { flushdb, seed } from "@server/test/support";
 import userCreator from "./userCreator";
 
 beforeEach(() => flushdb());
@@ -34,6 +36,77 @@ describe("userCreator", () => {
     expect(user.email).toEqual(newEmail);
     expect(user.username).toEqual(newUsername);
     expect(isNewUser).toEqual(false);
+  });
+
+  it("should add authentication provider to existing users", async () => {
+    const team = await buildTeam({ inviteRequired: true });
+    const teamAuthProviders = await team.$get("authenticationProviders");
+    const authenticationProvider = teamAuthProviders[0];
+
+    const email = "mynam@email.com";
+    const existing = await buildUser({
+      email,
+      teamId: team.id,
+      authentications: [],
+    });
+
+    const result = await userCreator({
+      name: existing.name,
+      email,
+      username: "new-username",
+      avatarUrl: existing.avatarUrl,
+      teamId: existing.teamId,
+      ip,
+      authentication: {
+        authenticationProviderId: authenticationProvider.id,
+        providerId: uuidv4(),
+        accessToken: "123",
+        scopes: ["read"],
+      },
+    });
+    const { user, authentication, isNewUser } = result;
+    expect(authentication.accessToken).toEqual("123");
+    expect(authentication.scopes.length).toEqual(1);
+    expect(authentication.scopes[0]).toEqual("read");
+
+    const authentications = await user.$get("authentications");
+    expect(authentications.length).toEqual(1);
+    expect(isNewUser).toEqual(false);
+  });
+
+  it("should add authentication provider to invited users", async () => {
+    const team = await buildTeam({ inviteRequired: true });
+    const teamAuthProviders = await team.$get("authenticationProviders");
+    const authenticationProvider = teamAuthProviders[0];
+
+    const email = "mynam@email.com";
+    const existing = await buildInvite({
+      email,
+      teamId: team.id,
+    });
+
+    const result = await userCreator({
+      name: existing.name,
+      email,
+      username: "new-username",
+      avatarUrl: existing.avatarUrl,
+      teamId: existing.teamId,
+      ip,
+      authentication: {
+        authenticationProviderId: authenticationProvider.id,
+        providerId: uuidv4(),
+        accessToken: "123",
+        scopes: ["read"],
+      },
+    });
+    const { user, authentication, isNewUser } = result;
+    expect(authentication.accessToken).toEqual("123");
+    expect(authentication.scopes.length).toEqual(1);
+    expect(authentication.scopes[0]).toEqual("read");
+
+    const authentications = await user.$get("authentications");
+    expect(authentications.length).toEqual(1);
+    expect(isNewUser).toEqual(true);
   });
 
   it("should create user with deleted user matching providerId", async () => {
@@ -184,15 +257,16 @@ describe("userCreator", () => {
   });
 
   it("should create a user from an invited user", async () => {
-    const team = await buildTeam();
+    const team = await buildTeam({ inviteRequired: true });
     const invite = await buildInvite({
       teamId: team.id,
+      email: "invite@example.com",
     });
     const authenticationProviders = await team.$get("authenticationProviders");
     const authenticationProvider = authenticationProviders[0];
     const result = await userCreator({
       name: invite.name,
-      email: invite.email!,
+      email: "invite@ExamPle.com",
       teamId: invite.teamId,
       ip,
       authentication: {
@@ -208,5 +282,98 @@ describe("userCreator", () => {
     expect(authentication.scopes[0]).toEqual("read");
     expect(user.email).toEqual(invite.email);
     expect(isNewUser).toEqual(true);
+  });
+
+  it("should reject an uninvited user when invites are required", async () => {
+    const team = await buildTeam({ inviteRequired: true });
+
+    const authenticationProviders = await team.$get("authenticationProviders");
+    const authenticationProvider = authenticationProviders[0];
+    let error;
+
+    try {
+      await userCreator({
+        name: "Uninvited User",
+        email: "invite@ExamPle.com",
+        teamId: team.id,
+        ip,
+        authentication: {
+          authenticationProviderId: authenticationProvider.id,
+          providerId: "fake-service-id",
+          accessToken: "123",
+          scopes: ["read"],
+        },
+      });
+    } catch (err) {
+      error = err;
+    }
+
+    expect(error && error.toString()).toContain(
+      "You need an invite to join this team"
+    );
+  });
+
+  it("should create a user from allowed Domain", async () => {
+    const { admin, team } = await seed();
+    await TeamDomain.create({
+      teamId: team.id,
+      name: "example-company.com",
+      createdById: admin.id,
+    });
+
+    const authenticationProviders = await team.$get("authenticationProviders");
+    const authenticationProvider = authenticationProviders[0];
+    const result = await userCreator({
+      name: "Test Name",
+      email: "user@example-company.com",
+      teamId: team.id,
+      ip,
+      authentication: {
+        authenticationProviderId: authenticationProvider.id,
+        providerId: "fake-service-id",
+        accessToken: "123",
+        scopes: ["read"],
+      },
+    });
+    const { user, authentication, isNewUser } = result;
+    expect(authentication.accessToken).toEqual("123");
+    expect(authentication.scopes.length).toEqual(1);
+    expect(authentication.scopes[0]).toEqual("read");
+    expect(user.email).toEqual("user@example-company.com");
+    expect(isNewUser).toEqual(true);
+  });
+
+  it("should reject an user when the domain is not allowed", async () => {
+    const { admin, team } = await seed();
+    await TeamDomain.create({
+      teamId: team.id,
+      name: "other.com",
+      createdById: admin.id,
+    });
+
+    const authenticationProviders = await team.$get("authenticationProviders");
+    const authenticationProvider = authenticationProviders[0];
+    let error;
+
+    try {
+      await userCreator({
+        name: "Bad Domain User",
+        email: "user@example.com",
+        teamId: team.id,
+        ip,
+        authentication: {
+          authenticationProviderId: authenticationProvider.id,
+          providerId: "fake-service-id",
+          accessToken: "123",
+          scopes: ["read"],
+        },
+      });
+    } catch (err) {
+      error = err;
+    }
+
+    expect(error && error.toString()).toContain(
+      "The domain is not allowed for this team"
+    );
   });
 });
