@@ -1,4 +1,4 @@
-import { Location } from "history";
+import { Location, LocationDescriptor } from "history";
 import { TFunction } from "react-i18next";
 import RootStore from "~/stores/RootStore";
 import Document from "~/models/Document";
@@ -40,7 +40,7 @@ export type MenuHeading = {
 export type MenuInternalLink = {
   type: "route";
   title: React.ReactNode;
-  to: string;
+  to: LocationDescriptor;
   visible?: boolean;
   selected?: boolean;
   disabled?: boolean;
@@ -88,6 +88,7 @@ export type Action = {
   section: ((context: ActionContext) => string) | string;
   shortcut?: string[];
   keywords?: string;
+  dangerous?: boolean;
   iconInContextMenu?: boolean;
   icon?: React.ReactElement | React.FC;
   placeholder?: ((context: ActionContext) => string) | string;

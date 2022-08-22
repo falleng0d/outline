@@ -46,6 +46,11 @@ export enum UserFlag {
   InviteReminderSent = "inviteReminderSent",
 }
 
+export enum UserRole {
+  Member = "member",
+  Viewer = "viewer",
+}
+
 @Scopes(() => ({
   withAuthentications: {
     include: [
@@ -208,6 +213,22 @@ class User extends ParanoidModel {
 
   get color() {
     return stringToColor(this.id);
+  }
+
+  /**
+   * Returns a code that can be used to delete this user account. The code will
+   * be rotated when the user signs out.
+   *
+   * @returns The deletion code.
+   */
+  get deleteConfirmationCode() {
+    return crypto
+      .createHash("md5")
+      .update(this.jwtSecret)
+      .digest("hex")
+      .replace(/[l1IoO0]/gi, "")
+      .slice(0, 8)
+      .toUpperCase();
   }
 
   // instance methods
@@ -373,10 +394,10 @@ class User extends ParanoidModel {
     );
   };
 
-  demote = async (teamId: string, to: "member" | "viewer") => {
+  demote = async (to: UserRole, options?: SaveOptions<User>) => {
     const res = await (this.constructor as typeof User).findAndCountAll({
       where: {
-        teamId,
+        teamId: this.teamId,
         isAdmin: true,
         id: {
           [Op.ne]: this.id,
@@ -387,15 +408,21 @@ class User extends ParanoidModel {
 
     if (res.count >= 1) {
       if (to === "member") {
-        return this.update({
-          isAdmin: false,
-          isViewer: false,
-        });
+        return this.update(
+          {
+            isAdmin: false,
+            isViewer: false,
+          },
+          options
+        );
       } else if (to === "viewer") {
-        return this.update({
-          isAdmin: false,
-          isViewer: true,
-        });
+        return this.update(
+          {
+            isAdmin: false,
+            isViewer: true,
+          },
+          options
+        );
       }
 
       return undefined;
@@ -408,13 +435,6 @@ class User extends ParanoidModel {
     return this.update({
       isAdmin: true,
       isViewer: false,
-    });
-  };
-
-  activate = () => {
-    return this.update({
-      suspendedById: null,
-      suspendedAt: null,
     });
   };
 
@@ -470,7 +490,9 @@ class User extends ParanoidModel {
   };
 
   // By default when a user signs up we subscribe them to email notifications
-  // when documents they created are edited by other team members and onboarding
+  // when documents they created are edited by other team members and onboarding.
+  // If the user is an admin, they will also be subscribed to export_completed
+  // notifications.
   @AfterCreate
   static subscribeToNotifications = async (
     model: User,
@@ -510,6 +532,17 @@ class User extends ParanoidModel {
         transaction: options.transaction,
       }),
     ]);
+
+    if (model.isAdmin) {
+      await NotificationSetting.findOrCreate({
+        where: {
+          userId: model.id,
+          teamId: model.teamId,
+          event: "emails.export_completed",
+        },
+        transaction: options.transaction,
+      });
+    }
   };
 
   static getCounts = async function (teamId: string) {
@@ -539,7 +572,7 @@ class User extends ParanoidModel {
       suspendedCount: string;
       viewerCount: string;
       count: string;
-    } = results as any;
+    } = results;
 
     return {
       active: parseInt(counts.activeCount),

@@ -1,8 +1,9 @@
 import { rootCollectionActions } from "./definitions/collections";
-import { rootDebugActions } from "./definitions/debug";
+import { rootDeveloperActions } from "./definitions/developer";
 import { rootDocumentActions } from "./definitions/documents";
 import { rootNavigationActions } from "./definitions/navigation";
 import { rootSettingsActions } from "./definitions/settings";
+import { rootTeamActions } from "./definitions/teams";
 import { rootUserActions } from "./definitions/users";
 
 export default [
@@ -11,5 +12,6 @@ export default [
   ...rootUserActions,
   ...rootNavigationActions,
   ...rootSettingsActions,
-  ...rootDebugActions,
+  ...rootDeveloperActions,
+  ...rootTeamActions,
 ];

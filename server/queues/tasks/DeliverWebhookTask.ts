@@ -79,10 +79,18 @@ export default class DeliverWebhookTask extends BaseTask<Props> {
       rejectOnEmpty: true,
     });
 
-    Logger.info(
-      "task",
-      `DeliverWebhookTask: ${event.name} for ${subscription.name}`
-    );
+    if (!subscription.enabled) {
+      Logger.info("task", `WebhookSubscription was disabled before delivery`, {
+        event: event.name,
+        subscriptionId: subscription.id,
+      });
+      return;
+    }
+
+    Logger.info("task", `DeliverWebhookTask: ${event.name}`, {
+      event: event.name,
+      subscriptionId: subscription.id,
+    });
 
     switch (event.name) {
       case "api_keys.create":
@@ -537,6 +545,7 @@ export default class DeliverWebhookTask extends BaseTask<Props> {
         headers: requestHeaders,
         body: JSON.stringify(requestBody),
         redirect: "error",
+        timeout: 5000,
         agent: useAgent(subscription.url),
       });
       status = response.ok ? "success" : "failed";
@@ -586,7 +595,7 @@ export default class DeliverWebhookTask extends BaseTask<Props> {
 
     if (recentDeliveries.length === 25 && allFailed) {
       // If the last 25 deliveries failed, disable the subscription
-      await subscription.update({ enabled: false });
+      await subscription.disable();
 
       // Send an email to the creator of the webhook to let them know
       const [createdBy, team] = await Promise.all([

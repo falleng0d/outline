@@ -1,6 +1,7 @@
 /* eslint-disable no-irregular-whitespace */
 import { darken, lighten, transparentize } from "polished";
 import styled from "styled-components";
+import { depths } from "@shared/styles";
 
 const EditorStyles = styled.div<{
   rtl: boolean;
@@ -61,6 +62,15 @@ const EditorStyles = styled.div<{
       margin-top: .75em;
       margin-bottom: 0.25em;
     }
+
+    // all of heading sizes are stepped down one from global styles, except h1
+    // which is between h1 and h2
+    h1 { font-size: 1.75em; }
+    h2 { font-size: 1.25em; }
+    h3 { font-size: 1em; }
+    h4 { font-size: 0.875em; }
+    h5 { font-size: 0.75em; }
+    h6 { font-size: 0.75em; }
 
     .ProseMirror-yjs-cursor {
       position: relative;
@@ -359,6 +369,7 @@ const EditorStyles = styled.div<{
 
   .heading-actions {
     opacity: 0;
+    z-index: ${depths.editorHeadingActions};
     background: ${(props) => props.theme.background};
     margin-${(props) => (props.rtl ? "right" : "left")}: -26px;
     flex-direction: ${(props) => (props.rtl ? "row-reverse" : "row")};
