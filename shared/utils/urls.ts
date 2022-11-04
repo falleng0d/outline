@@ -1,3 +1,4 @@
+import { escapeRegExp } from "lodash";
 import env from "../env";
 import { parseDomain } from "./domains";
 
@@ -44,17 +45,31 @@ export function isInternalUrl(href: string) {
 /**
  * Returns true if the given string is a url.
  *
- * @param url The url to check.
+ * @param text The url to check.
+ * @param options Parsing options.
  * @returns True if a url, false otherwise.
  */
-export function isUrl(text: string) {
+export function isUrl(text: string, options?: { requireHostname: boolean }) {
   if (text.match(/\n/)) {
     return false;
   }
 
   try {
     const url = new URL(text);
-    return url.hostname !== "";
+    const blockedProtocols = ["javascript:", "file:", "vbscript:", "data:"];
+
+    if (blockedProtocols.includes(url.protocol)) {
+      return false;
+    }
+    if (url.hostname) {
+      return true;
+    }
+
+    return (
+      url.protocol !== "" &&
+      url.pathname.startsWith("//") &&
+      !options?.requireHostname
+    );
   } catch (err) {
     return false;
   }
@@ -67,7 +82,7 @@ export function isUrl(text: string) {
  * @returns True if the url is external, false otherwise.
  */
 export function isExternalUrl(url: string) {
-  return !isInternalUrl(url);
+  return !!url && !isInternalUrl(url);
 }
 
 /**
@@ -83,12 +98,25 @@ export function sanitizeUrl(url: string | null | undefined) {
   }
 
   if (
-    !isUrl(url) &&
+    !isUrl(url, { requireHostname: false }) &&
     !url.startsWith("/") &&
     !url.startsWith("#") &&
-    !url.startsWith("mailto:")
+    !url.startsWith("mailto:") &&
+    !url.startsWith("sms:") &&
+    !url.startsWith("fax:") &&
+    !url.startsWith("tel:")
   ) {
     return `https://${url}`;
   }
   return url;
+}
+
+export function urlRegex(url: string | null | undefined): RegExp | undefined {
+  if (!url || !isUrl(url)) {
+    return undefined;
+  }
+
+  const urlObj = new URL(sanitizeUrl(url) as string);
+
+  return new RegExp(escapeRegExp(`${urlObj.protocol}//${urlObj.host}`));
 }

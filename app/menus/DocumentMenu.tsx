@@ -27,6 +27,8 @@ import { actionToMenuItem } from "~/actions";
 import {
   pinDocument,
   createTemplate,
+  subscribeDocument,
+  unsubscribeDocument,
   moveDocument,
   deleteDocument,
   permanentlyDeleteDocument,
@@ -41,6 +43,7 @@ import useActionContext from "~/hooks/useActionContext";
 import useCurrentTeam from "~/hooks/useCurrentTeam";
 import useMobile from "~/hooks/useMobile";
 import usePolicy from "~/hooks/usePolicy";
+import useRequest from "~/hooks/useRequest";
 import useStores from "~/hooks/useStores";
 import useToasts from "~/hooks/useToasts";
 import { MenuItem } from "~/types";
@@ -77,7 +80,7 @@ function DocumentMenu({
   onClose,
 }: Props) {
   const team = useCurrentTeam();
-  const { policies, collections, documents } = useStores();
+  const { policies, collections, documents, subscriptions } = useStores();
   const { showToast } = useToasts();
   const menu = useMenuState({
     modal,
@@ -94,6 +97,22 @@ function DocumentMenu({
   const { t } = useTranslation();
   const isMobile = useMobile();
   const file = React.useRef<HTMLInputElement>(null);
+  const { data, loading, request } = useRequest(() =>
+    subscriptions.fetchPage({
+      documentId: document.id,
+      event: "documents.update",
+    })
+  );
+
+  const handleOpen = React.useCallback(async () => {
+    if (!data && !loading) {
+      request();
+    }
+
+    if (onOpen) {
+      onOpen();
+    }
+  }, [data, loading, onOpen, request]);
 
   const handleRestore = React.useCallback(
     async (
@@ -123,7 +142,7 @@ function DocumentMenu({
   }, [menu]);
 
   const collection = collections.get(document.collectionId);
-  const can = usePolicy(document.id);
+  const can = usePolicy(document);
   const canViewHistory = can.read && !can.restore;
   const restoreItems = React.useMemo(
     () => [
@@ -217,7 +236,7 @@ function DocumentMenu({
       <ContextMenu
         {...menu}
         aria-label={t("Document options")}
-        onOpen={onOpen}
+        onOpen={handleOpen}
         onClose={onClose}
       >
         <Template
@@ -250,9 +269,10 @@ function DocumentMenu({
                 ...restoreItems,
               ],
             },
-            actionToMenuItem(unstarDocument, context),
             actionToMenuItem(starDocument, context),
-            actionToMenuItem(pinDocument, context),
+            actionToMenuItem(unstarDocument, context),
+            actionToMenuItem(subscribeDocument, context),
+            actionToMenuItem(unsubscribeDocument, context),
             {
               type: "separator",
             },
@@ -260,7 +280,7 @@ function DocumentMenu({
               type: "route",
               title: t("Edit"),
               to: editDocumentUrl(document),
-              visible: !!can.update && !team.collaborativeEditing,
+              visible: !!can.update && !team.seamlessEditing,
               icon: <EditIcon />,
             },
             {
@@ -284,11 +304,16 @@ function DocumentMenu({
             },
             actionToMenuItem(archiveDocument, context),
             actionToMenuItem(moveDocument, context),
+            actionToMenuItem(pinDocument, context),
+            {
+              type: "separator",
+            },
             actionToMenuItem(deleteDocument, context),
             actionToMenuItem(permanentlyDeleteDocument, context),
             {
               type: "separator",
             },
+            actionToMenuItem(downloadDocument, context),
             {
               type: "route",
               title: t("History"),
@@ -298,7 +323,6 @@ function DocumentMenu({
               visible: canViewHistory,
               icon: <HistoryIcon />,
             },
-            actionToMenuItem(downloadDocument, context),
             {
               type: "button",
               title: t("Print"),
