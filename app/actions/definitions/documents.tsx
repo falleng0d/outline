@@ -18,8 +18,13 @@ import {
   CrossIcon,
   ArchiveIcon,
   ShuffleIcon,
+  HistoryIcon,
+  LightBulbIcon,
+  UnpublishIcon,
+  PublishIcon,
 } from "outline-icons";
 import * as React from "react";
+import { ExportContentType } from "@shared/types";
 import { getEventFiles } from "@shared/utils/files";
 import DocumentDelete from "~/scenes/DocumentDelete";
 import DocumentMove from "~/scenes/DocumentMove";
@@ -27,8 +32,15 @@ import DocumentPermanentDelete from "~/scenes/DocumentPermanentDelete";
 import DocumentTemplatizeDialog from "~/components/DocumentTemplatizeDialog";
 import { createAction } from "~/actions";
 import { DocumentSection } from "~/actions/sections";
+import env from "~/env";
 import history from "~/utils/history";
-import { homePath, newDocumentPath, searchPath } from "~/utils/routeHelpers";
+import {
+  documentInsightsUrl,
+  documentHistoryUrl,
+  homePath,
+  newDocumentPath,
+  searchPath,
+} from "~/utils/routeHelpers";
 
 export const openDocument = createAction({
   name: ({ t }) => t("Open document"),
@@ -118,6 +130,61 @@ export const unstarDocument = createAction({
   },
 });
 
+export const publishDocument = createAction({
+  name: ({ t }) => t("Publish"),
+  section: DocumentSection,
+  icon: <PublishIcon />,
+  visible: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId) {
+      return false;
+    }
+    const document = stores.documents.get(activeDocumentId);
+    return (
+      !!document?.isDraft && stores.policies.abilities(activeDocumentId).update
+    );
+  },
+  perform: ({ activeDocumentId, stores, t }) => {
+    if (!activeDocumentId) {
+      return;
+    }
+
+    const document = stores.documents.get(activeDocumentId);
+
+    document?.save({
+      publish: true,
+    });
+
+    stores.toasts.showToast(t("Document published"), {
+      type: "success",
+    });
+  },
+});
+
+export const unpublishDocument = createAction({
+  name: ({ t }) => t("Unpublish"),
+  section: DocumentSection,
+  icon: <UnpublishIcon />,
+  visible: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId) {
+      return false;
+    }
+    return stores.policies.abilities(activeDocumentId).unpublish;
+  },
+  perform: ({ activeDocumentId, stores, t }) => {
+    if (!activeDocumentId) {
+      return;
+    }
+
+    const document = stores.documents.get(activeDocumentId);
+
+    document?.unpublish();
+
+    stores.toasts.showToast(t("Document unpublished"), {
+      type: "success",
+    });
+  },
+});
+
 export const subscribeDocument = createAction({
   name: ({ t }) => t("Subscribe"),
   section: DocumentSection,
@@ -194,7 +261,34 @@ export const downloadDocumentAsHTML = createAction({
     }
 
     const document = stores.documents.get(activeDocumentId);
-    document?.download("text/html");
+    document?.download(ExportContentType.Html);
+  },
+});
+
+export const downloadDocumentAsPDF = createAction({
+  name: ({ t }) => t("PDF"),
+  section: DocumentSection,
+  keywords: "export",
+  icon: <DownloadIcon />,
+  iconInContextMenu: false,
+  visible: ({ activeDocumentId, stores }) =>
+    !!activeDocumentId &&
+    stores.policies.abilities(activeDocumentId).download &&
+    env.PDF_EXPORT_ENABLED,
+  perform: ({ activeDocumentId, t, stores }) => {
+    if (!activeDocumentId) {
+      return;
+    }
+
+    const id = stores.toasts.showToast(`${t("Exporting")}…`, {
+      type: "loading",
+      timeout: 30 * 1000,
+    });
+
+    const document = stores.documents.get(activeDocumentId);
+    document
+      ?.download(ExportContentType.Pdf)
+      .finally(() => id && stores.toasts.hideToast(id));
   },
 });
 
@@ -212,7 +306,7 @@ export const downloadDocumentAsMarkdown = createAction({
     }
 
     const document = stores.documents.get(activeDocumentId);
-    document?.download("text/markdown");
+    document?.download(ExportContentType.Markdown);
   },
 });
 
@@ -222,7 +316,11 @@ export const downloadDocument = createAction({
   section: DocumentSection,
   icon: <DownloadIcon />,
   keywords: "export",
-  children: [downloadDocumentAsHTML, downloadDocumentAsMarkdown],
+  children: [
+    downloadDocumentAsHTML,
+    downloadDocumentAsPDF,
+    downloadDocumentAsMarkdown,
+  ],
 });
 
 export const duplicateDocument = createAction({
@@ -571,6 +669,46 @@ export const permanentlyDeleteDocument = createAction({
   },
 });
 
+export const openDocumentHistory = createAction({
+  name: ({ t }) => t("History"),
+  section: DocumentSection,
+  icon: <HistoryIcon />,
+  visible: ({ activeDocumentId, stores }) => {
+    const can = stores.policies.abilities(activeDocumentId ?? "");
+    return !!activeDocumentId && can.read && !can.restore;
+  },
+  perform: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId) {
+      return;
+    }
+    const document = stores.documents.get(activeDocumentId);
+    if (!document) {
+      return;
+    }
+    history.push(documentHistoryUrl(document));
+  },
+});
+
+export const openDocumentInsights = createAction({
+  name: ({ t }) => t("Insights"),
+  section: DocumentSection,
+  icon: <LightBulbIcon />,
+  visible: ({ activeDocumentId, stores }) => {
+    const can = stores.policies.abilities(activeDocumentId ?? "");
+    return !!activeDocumentId && can.read;
+  },
+  perform: ({ activeDocumentId, stores }) => {
+    if (!activeDocumentId) {
+      return;
+    }
+    const document = stores.documents.get(activeDocumentId);
+    if (!document) {
+      return;
+    }
+    history.push(documentInsightsUrl(document));
+  },
+});
+
 export const rootDocumentActions = [
   openDocument,
   archiveDocument,
@@ -581,6 +719,8 @@ export const rootDocumentActions = [
   downloadDocument,
   starDocument,
   unstarDocument,
+  publishDocument,
+  unpublishDocument,
   subscribeDocument,
   unsubscribeDocument,
   duplicateDocument,
@@ -590,4 +730,6 @@ export const rootDocumentActions = [
   printDocument,
   pinDocumentToCollection,
   pinDocumentToHome,
+  openDocumentHistory,
+  openDocumentInsights,
 ];

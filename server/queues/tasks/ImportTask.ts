@@ -1,6 +1,6 @@
 import { S3 } from "aws-sdk";
 import { truncate } from "lodash";
-import { CollectionPermission } from "@shared/types";
+import { CollectionPermission, FileOperationState } from "@shared/types";
 import { CollectionValidation } from "@shared/validations";
 import attachmentCreator from "@server/commands/attachmentCreator";
 import documentCreator from "@server/commands/documentCreator";
@@ -15,7 +15,6 @@ import {
   FileOperation,
   Attachment,
 } from "@server/models";
-import { FileOperationState } from "@server/models/FileOperation";
 import BaseTask, { TaskPriority } from "./BaseTask";
 
 type Props = {
@@ -274,6 +273,7 @@ export default abstract class ImportTask extends BaseTask<Props> {
               }),
               createdById: fileOperation.userId,
               permission: CollectionPermission.ReadWrite,
+              importId: fileOperation.id,
             },
             transaction,
           });
@@ -294,6 +294,7 @@ export default abstract class ImportTask extends BaseTask<Props> {
                 createdById: fileOperation.userId,
                 name,
                 permission: CollectionPermission.ReadWrite,
+                importId: fileOperation.id,
               },
               { transaction }
             );
@@ -357,6 +358,7 @@ export default abstract class ImportTask extends BaseTask<Props> {
             updatedAt: item.updatedAt ?? item.createdAt,
             publishedAt: item.updatedAt ?? item.createdAt ?? new Date(),
             parentDocumentId: item.parentDocumentId,
+            importId: fileOperation.id,
             user,
             ip,
             transaction,

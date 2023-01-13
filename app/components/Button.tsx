@@ -6,18 +6,19 @@ import styled from "styled-components";
 import ActionButton, {
   Props as ActionButtonProps,
 } from "~/components/ActionButton";
+import { undraggableOnDesktop } from "~/styles";
 
 type RealProps = {
-  fullwidth?: boolean;
-  borderOnHover?: boolean;
+  $fullwidth?: boolean;
+  $borderOnHover?: boolean;
   $neutral?: boolean;
-  danger?: boolean;
-  iconColor?: string;
+  $danger?: boolean;
+  $iconColor?: string;
 };
 
 const RealButton = styled(ActionButton)<RealProps>`
-  display: ${(props) => (props.fullwidth ? "block" : "inline-block")};
-  width: ${(props) => (props.fullwidth ? "100%" : "auto")};
+  display: ${(props) => (props.$fullwidth ? "block" : "inline-block")};
+  width: ${(props) => (props.$fullwidth ? "100%" : "auto")};
   margin: 0;
   padding: 0;
   border: 0;
@@ -33,12 +34,13 @@ const RealButton = styled(ActionButton)<RealProps>`
   cursor: var(--pointer);
   user-select: none;
   appearance: none !important;
+  ${undraggableOnDesktop()}
 
   ${(props) =>
-    !props.borderOnHover &&
+    !props.$borderOnHover &&
     `
       svg {
-        fill: ${props.iconColor || "currentColor"};
+        fill: ${props.$iconColor || "currentColor"};
       }
     `}
 
@@ -69,16 +71,16 @@ const RealButton = styled(ActionButton)<RealProps>`
     background: ${props.theme.buttonNeutralBackground};
     color: ${props.theme.buttonNeutralText};
     box-shadow: ${
-      props.borderOnHover
+      props.$borderOnHover
         ? "none"
         : `rgba(0, 0, 0, 0.07) 0px 1px 2px, ${props.theme.buttonNeutralBorder} 0 0 0 1px inset`
     };
 
     ${
-      props.borderOnHover
+      props.$borderOnHover
         ? ""
         : `svg {
-      fill: ${props.iconColor || "currentColor"};
+      fill: ${props.$iconColor || "currentColor"};
     }`
     }
 
@@ -86,7 +88,7 @@ const RealButton = styled(ActionButton)<RealProps>`
     &:hover:not(:disabled),
     &[aria-expanded="true"] {
       background: ${
-        props.borderOnHover
+        props.$borderOnHover
           ? props.theme.buttonNeutralBackground
           : darken(0.05, props.theme.buttonNeutralBackground)
       };
@@ -106,7 +108,7 @@ const RealButton = styled(ActionButton)<RealProps>`
   `}
 
   ${(props) =>
-    props.danger &&
+    props.$danger &&
     `
       background: ${props.theme.danger};
       color: ${props.theme.white};
@@ -158,7 +160,6 @@ export type Props<T> = ActionButtonProps & {
   disclosure?: boolean;
   neutral?: boolean;
   danger?: boolean;
-  primary?: boolean;
   fullwidth?: boolean;
   as?: T;
   to?: LocationDescriptor;
@@ -173,10 +174,23 @@ const Button = <T extends React.ElementType = "button">(
   props: Props<T> & React.ComponentPropsWithoutRef<T>,
   ref: React.Ref<HTMLButtonElement>
 ) => {
-  const { type, children, value, disclosure, neutral, action, ...rest } = props;
+  const {
+    type,
+    children,
+    value,
+    disclosure,
+    neutral,
+    action,
+    icon,
+    iconColor,
+    borderOnHover,
+    fullwidth,
+    danger,
+    ...rest
+  } = props;
   const hasText = children !== undefined || value !== undefined;
-  const icon = action?.icon ?? rest.icon;
-  const hasIcon = icon !== undefined;
+  const ic = action?.icon ?? icon;
+  const hasIcon = ic !== undefined;
 
   return (
     <RealButton
@@ -184,10 +198,14 @@ const Button = <T extends React.ElementType = "button">(
       ref={ref}
       $neutral={neutral}
       action={action}
+      $danger={danger}
+      $fullwidth={fullwidth}
+      $borderOnHover={borderOnHover}
+      $iconColor={iconColor}
       {...rest}
     >
       <Inner hasIcon={hasIcon} hasText={hasText} disclosure={disclosure}>
-        {hasIcon && icon}
+        {hasIcon && ic}
         {hasText && <Label hasIcon={hasIcon}>{children || value}</Label>}
         {disclosure && <ExpandedIcon color="currentColor" />}
       </Inner>

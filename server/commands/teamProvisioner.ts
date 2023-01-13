@@ -6,7 +6,7 @@ import {
   InvalidAuthenticationError,
   MaximumTeamsError,
 } from "@server/errors";
-import { APM } from "@server/logging/tracing";
+import { traceFunction } from "@server/logging/tracing";
 import { Team, AuthenticationProvider } from "@server/models";
 
 type TeamProvisionerResult = {
@@ -72,13 +72,13 @@ async function teamProvisioner({
     };
   } else if (teamId) {
     // The user is attempting to log into a team with an unfamiliar SSO provider
-    throw InvalidAuthenticationError();
-  }
+    if (env.DEPLOYMENT === "hosted") {
+      throw InvalidAuthenticationError();
+    }
 
-  // This team has never been seen before, if self hosted the logic is different
-  // to the multi-tenant version, we want to restrict to a single team that MAY
-  // have multiple authentication providers
-  if (env.DEPLOYMENT !== "hosted") {
+    // This team has never been seen before, if self hosted the logic is different
+    // to the multi-tenant version, we want to restrict to a single team that MAY
+    // have multiple authentication providers
     const team = await Team.findOne();
 
     // If the self-hosted installation has a single team and the domain for the
@@ -125,7 +125,6 @@ async function teamProvisioner({
   };
 }
 
-export default APM.traceFunction({
-  serviceName: "command",
+export default traceFunction({
   spanName: "teamProvisioner",
 })(teamProvisioner);

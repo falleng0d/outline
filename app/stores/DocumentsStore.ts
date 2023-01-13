@@ -10,6 +10,7 @@ import { DocumentValidation } from "@shared/validations";
 import BaseStore from "~/stores/BaseStore";
 import RootStore from "~/stores/RootStore";
 import Document from "~/models/Document";
+import Team from "~/models/Team";
 import env from "~/env";
 import {
   FetchOptions,
@@ -40,7 +41,10 @@ type ImportOptions = {
 };
 
 export default class DocumentsStore extends BaseStore<Document> {
-  sharedTreeCache: Map<string, NavigationNode | undefined> = new Map();
+  sharedCache: Map<
+    string,
+    { sharedTree: NavigationNode; team: Team } | undefined
+  > = new Map();
 
   @observable
   searchCache: Map<string, SearchResult[] | undefined> = new Map();
@@ -265,7 +269,7 @@ export default class DocumentsStore extends BaseStore<Document> {
   }
 
   getSharedTree(documentId: string): NavigationNode | undefined {
-    return this.sharedTreeCache.get(documentId);
+    return this.sharedCache.get(documentId)?.sharedTree;
   }
 
   @action
@@ -381,14 +385,35 @@ export default class DocumentsStore extends BaseStore<Document> {
   };
 
   @action
-  searchTitles = async (query: string) => {
+  searchTitles = async (query: string, options?: SearchParams) => {
+    const compactedOptions = omitBy(options, (o) => !o);
     const res = await client.post("/documents.search_titles", {
+      ...compactedOptions,
       query,
     });
     invariant(res?.data, "Search response should be available");
+
     // add the documents and associated policies to the store
     res.data.forEach(this.add);
     this.addPolicies(res.policies);
+
+    // store a reference to the document model in the search cache instead
+    // of the original result from the API.
+    const results: SearchResult[] = compact(
+      res.data.map((result: SearchResult) => {
+        const document = this.data.get(result.id);
+        if (!document) {
+          return null;
+        }
+        return {
+          document,
+        };
+      })
+    );
+    const existing = this.searchCache.get(query) || [];
+    // splice modifies any existing results, taking into account pagination
+    existing.splice(0, existing.length, ...results);
+    this.searchCache.set(query, existing);
     return res.data;
   };
 
@@ -466,6 +491,7 @@ export default class DocumentsStore extends BaseStore<Document> {
     options: FetchOptions = {}
   ): Promise<{
     document: Document;
+    team?: Team;
     sharedTree?: NavigationNode;
   }> => {
     if (!options.prefetch) {
@@ -482,10 +508,10 @@ export default class DocumentsStore extends BaseStore<Document> {
           return {
             document: doc,
           };
-        } else if (this.sharedTreeCache.has(options.shareId)) {
+        } else if (this.sharedCache.has(options.shareId)) {
           return {
             document: doc,
-            sharedTree: this.sharedTreeCache.get(options.shareId),
+            ...this.sharedCache.get(options.shareId),
           };
         }
       }
@@ -504,10 +530,14 @@ export default class DocumentsStore extends BaseStore<Document> {
       invariant(document, "Document not available");
 
       if (options.shareId) {
-        this.sharedTreeCache.set(options.shareId, res.data.sharedTree);
+        this.sharedCache.set(options.shareId, {
+          sharedTree: res.data.sharedTree,
+          team: res.data.team,
+        });
         return {
           document,
           sharedTree: res.data.sharedTree,
+          team: res.data.team,
         };
       }
 

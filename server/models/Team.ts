@@ -24,7 +24,7 @@ import { CollectionPermission, TeamPreference } from "@shared/types";
 import { getBaseDomain, RESERVED_SUBDOMAINS } from "@shared/utils/domains";
 import env from "@server/env";
 import DeleteAttachmentTask from "@server/queues/tasks/DeleteAttachmentTask";
-import { generateAvatarUrl } from "@server/utils/avatars";
+import isCloudHosted from "@server/utils/isCloudHosted";
 import parseAttachmentIds from "@server/utils/parseAttachmentIds";
 import Attachment from "./Attachment";
 import AuthenticationProvider from "./AuthenticationProvider";
@@ -67,8 +67,10 @@ class Team extends ParanoidModel {
   @Unique
   @Length({
     min: 2,
-    max: 32,
-    msg: "subdomain must be between 2 and 32 characters",
+    max: isCloudHosted ? 32 : 255,
+    msg: `subdomain must be between 2 and ${
+      isCloudHosted ? 32 : 255
+    } characters`,
   })
   @Is({
     args: [/^[a-z\d-]+$/, "i"],
@@ -94,8 +96,20 @@ class Team extends ParanoidModel {
   @AllowNull
   @IsUrl
   @Length({ max: 4096, msg: "avatarUrl must be 4096 characters or less" })
-  @Column
-  avatarUrl: string | null;
+  @Column(DataType.STRING)
+  get avatarUrl() {
+    const original = this.getDataValue("avatarUrl");
+
+    if (original && !original.startsWith("https://tiley.herokuapp.com")) {
+      return original;
+    }
+
+    return null;
+  }
+
+  set avatarUrl(value: string | null) {
+    this.setDataValue("avatarUrl", value);
+  }
 
   @Default(true)
   @Column
@@ -149,28 +163,19 @@ class Team extends ParanoidModel {
   }
 
   get url() {
+    const url = new URL(env.URL);
+
     // custom domain
     if (this.domain) {
-      return `https://${this.domain}`;
+      return `${url.protocol}//${this.domain}${url.port ? `:${url.port}` : ""}`;
     }
 
     if (!this.subdomain || !env.SUBDOMAINS_ENABLED) {
       return env.URL;
     }
 
-    const url = new URL(env.URL);
     url.host = `${this.subdomain}.${getBaseDomain()}`;
     return url.href.replace(/\/$/, "");
-  }
-
-  get logoUrl() {
-    return (
-      this.avatarUrl ||
-      generateAvatarUrl({
-        id: this.id,
-        name: this.name,
-      })
-    );
   }
 
   /**
@@ -194,12 +199,11 @@ class Team extends ParanoidModel {
    * Returns the passed preference value
    *
    * @param preference The user preference to retrieve
+   * @param fallback An optional fallback value, defaults to false.
    * @returns The preference value if set, else undefined
    */
-  public getPreference = (preference: TeamPreference) => {
-    return !!this.preferences && this.preferences[preference]
-      ? this.preferences[preference]
-      : undefined;
+  public getPreference = (preference: TeamPreference, fallback = false) => {
+    return this.preferences?.[preference] ?? fallback;
   };
 
   provisionFirstCollection = async (userId: string) => {
@@ -207,8 +211,7 @@ class Team extends ParanoidModel {
       const collection = await Collection.create(
         {
           name: "Welcome",
-          description:
-            "This collection is a quick guide to what Outline is all about. Feel free to delete this collection once your team is up to speed with the basics!",
+          description: `This collection is a quick guide to what ${env.APP_NAME} is all about. Feel free to delete this collection once your team is up to speed with the basics!`,
           teamId: this.id,
           createdById: userId,
           sort: Collection.DEFAULT_SORT,
@@ -329,6 +332,7 @@ class Team extends ParanoidModel {
       if (attachment) {
         await DeleteAttachmentTask.schedule({
           attachmentId: attachment.id,
+          teamId: model.id,
         });
       }
     }

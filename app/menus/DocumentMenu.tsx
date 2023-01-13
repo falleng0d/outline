@@ -1,8 +1,6 @@
 import { observer } from "mobx-react";
 import {
   EditIcon,
-  HistoryIcon,
-  UnpublishIcon,
   PrintIcon,
   NewDocumentIcon,
   RestoreIcon,
@@ -16,12 +14,12 @@ import styled from "styled-components";
 import breakpoint from "styled-components-breakpoint";
 import { getEventFiles } from "@shared/utils/files";
 import Document from "~/models/Document";
-import CollectionIcon from "~/components/CollectionIcon";
 import ContextMenu from "~/components/ContextMenu";
 import OverflowMenuButton from "~/components/ContextMenu/OverflowMenuButton";
 import Separator from "~/components/ContextMenu/Separator";
 import Template from "~/components/ContextMenu/Template";
 import Flex from "~/components/Flex";
+import CollectionIcon from "~/components/Icons/CollectionIcon";
 import Switch from "~/components/Switch";
 import { actionToMenuItem } from "~/actions";
 import {
@@ -38,6 +36,10 @@ import {
   unstarDocument,
   duplicateDocument,
   archiveDocument,
+  openDocumentHistory,
+  openDocumentInsights,
+  publishDocument,
+  unpublishDocument,
 } from "~/actions/definitions/documents";
 import useActionContext from "~/hooks/useActionContext";
 import useCurrentTeam from "~/hooks/useCurrentTeam";
@@ -47,12 +49,7 @@ import useRequest from "~/hooks/useRequest";
 import useStores from "~/hooks/useStores";
 import useToasts from "~/hooks/useToasts";
 import { MenuItem } from "~/types";
-import {
-  documentHistoryUrl,
-  documentUrl,
-  editDocumentUrl,
-  newDocumentPath,
-} from "~/utils/routeHelpers";
+import { editDocumentUrl, newDocumentPath } from "~/utils/routeHelpers";
 
 type Props = {
   document: Document;
@@ -70,7 +67,6 @@ type Props = {
 
 function DocumentMenu({
   document,
-  isRevision,
   className,
   modal = true,
   showToggleEmbeds,
@@ -129,13 +125,6 @@ function DocumentMenu({
     [showToast, t, document]
   );
 
-  const handleUnpublish = React.useCallback(async () => {
-    await document.unpublish();
-    showToast(t("Document unpublished"), {
-      type: "success",
-    });
-  }, [showToast, t, document]);
-
   const handlePrint = React.useCallback(() => {
     menu.hide();
     window.print();
@@ -143,7 +132,6 @@ function DocumentMenu({
 
   const collection = collections.get(document.collectionId);
   const can = usePolicy(document);
-  const canViewHistory = can.read && !can.restore;
   const restoreItems = React.useMemo(
     () => [
       ...collections.orderedData.reduce<MenuItem[]>((filtered, collection) => {
@@ -295,34 +283,17 @@ function DocumentMenu({
             actionToMenuItem(importDocument, context),
             actionToMenuItem(createTemplate, context),
             actionToMenuItem(duplicateDocument, context),
-            {
-              type: "button",
-              title: t("Unpublish"),
-              onClick: handleUnpublish,
-              visible: !!can.unpublish,
-              icon: <UnpublishIcon />,
-            },
+            actionToMenuItem(publishDocument, context),
+            actionToMenuItem(unpublishDocument, context),
             actionToMenuItem(archiveDocument, context),
             actionToMenuItem(moveDocument, context),
             actionToMenuItem(pinDocument, context),
             {
               type: "separator",
             },
-            actionToMenuItem(deleteDocument, context),
-            actionToMenuItem(permanentlyDeleteDocument, context),
-            {
-              type: "separator",
-            },
             actionToMenuItem(downloadDocument, context),
-            {
-              type: "route",
-              title: t("History"),
-              to: isRevision
-                ? documentUrl(document)
-                : documentHistoryUrl(document),
-              visible: canViewHistory,
-              icon: <HistoryIcon />,
-            },
+            actionToMenuItem(openDocumentHistory, context),
+            actionToMenuItem(openDocumentInsights, context),
             {
               type: "button",
               title: t("Print"),
@@ -330,6 +301,11 @@ function DocumentMenu({
               visible: !!showDisplayOptions,
               icon: <PrintIcon />,
             },
+            {
+              type: "separator",
+            },
+            actionToMenuItem(deleteDocument, context),
+            actionToMenuItem(permanentlyDeleteDocument, context),
           ]}
         />
         {(showDisplayOptions || showToggleEmbeds) && (

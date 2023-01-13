@@ -12,7 +12,6 @@ type Props = {
 function Branding({ href = env.URL }: Props) {
   return (
     <Link href={href}>
-        {/*custom logo*/}
       <OutlineLogo size={24} />
       &nbsp;matj.dev
     </Link>

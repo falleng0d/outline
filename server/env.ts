@@ -51,14 +51,14 @@ export class Environment {
    * set or your users will be unable to login.
    */
   @IsByteLength(32, 64)
-  public SECRET_KEY = `${process.env.SECRET_KEY}`;
+  public SECRET_KEY = process.env.SECRET_KEY ?? "";
 
   /**
    * The secret that should be passed to the cron utility endpoint to enable
    * triggering of scheduled tasks.
    */
   @IsNotEmpty()
-  public UTILS_SECRET = `${process.env.UTILS_SECRET}`;
+  public UTILS_SECRET = process.env.UTILS_SECRET ?? "";
 
   /**
    * The url of the database.
@@ -69,7 +69,7 @@ export class Environment {
     allow_underscores: true,
     protocols: ["postgres", "postgresql"],
   })
-  public DATABASE_URL = `${process.env.DATABASE_URL}`;
+  public DATABASE_URL = process.env.DATABASE_URL ?? "";
 
   /**
    * The url of the database pool.
@@ -125,7 +125,7 @@ export class Environment {
    */
   @IsNotEmpty()
   @IsUrl({ require_tld: false })
-  public URL = `${process.env.URL}`;
+  public URL = process.env.URL || "";
 
   /**
    * If using a Cloudfront/Cloudflare distribution or similar it can be set below.
@@ -157,7 +157,7 @@ export class Environment {
   /**
    * Optional extra debugging. Comma separated
    */
-  public DEBUG = `${process.env.DEBUG}`;
+  public DEBUG = process.env.DEBUG || "";
 
   /**
    * How many processes should be spawned. As a reasonable rule divide your
@@ -330,14 +330,7 @@ export class Environment {
   public RELEASE = this.toOptionalString(process.env.RELEASE);
 
   /**
-   * An optional host from which to load default avatars.
-   */
-  @IsUrl()
-  public DEFAULT_AVATAR_HOST =
-    process.env.DEFAULT_AVATAR_HOST ?? "https://tiley.herokuapp.com";
-
-  /**
-   * A Google Analytics tracking ID, only v3 supported at this time.
+   * A Google Analytics tracking ID, supports only v3 properties.
    */
   @Contains("UA-")
   @IsOptional()
@@ -349,6 +342,11 @@ export class Environment {
    * A DataDog API key for tracking server metrics.
    */
   public DD_API_KEY = process.env.DD_API_KEY;
+
+  /**
+   * The name of the service to use in DataDog.
+   */
+  public DD_SERVICE = process.env.DD_SERVICE ?? "outline";
 
   /**
    * Google OAuth2 client credentials. To enable authentication with Google.
@@ -540,6 +538,25 @@ export class Environment {
   @CannotUseWithout("RATE_LIMITER_ENABLED")
   public RATE_LIMITER_DURATION_WINDOW =
     this.toOptionalNumber(process.env.RATE_LIMITER_DURATION_WINDOW) ?? 60;
+
+  /**
+   * Set max allowed upload size for file attachments.
+   */
+  @IsOptional()
+  @IsNumber()
+  public AWS_S3_UPLOAD_MAX_SIZE =
+    this.toOptionalNumber(process.env.AWS_S3_UPLOAD_MAX_SIZE) ?? 10000000000;
+
+  /**
+   * Set default AWS S3 ACL for file attachments.
+   */
+  @IsOptional()
+  public AWS_S3_ACL = process.env.AWS_S3_ACL ?? "private";
+
+  /**
+   * The product name
+   */
+  public APP_NAME = "Outline";
 
   private toOptionalString(value: string | undefined) {
     return value ? value : undefined;

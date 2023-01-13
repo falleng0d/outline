@@ -1,5 +1,26 @@
 import { Transaction } from "sequelize";
 import { Document, Event, User } from "@server/models";
+import DocumentHelper from "@server/models/helpers/DocumentHelper";
+
+type Props = {
+  id?: string;
+  title: string;
+  text: string;
+  publish?: boolean;
+  collectionId?: string;
+  parentDocumentId?: string | null;
+  importId?: string;
+  templateDocument?: Document | null;
+  publishedAt?: Date;
+  template?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  user: User;
+  editorVersion?: string;
+  source?: "import";
+  ip?: string;
+  transaction: Transaction;
+};
 
 export default async function documentCreator({
   title = "",
@@ -9,6 +30,7 @@ export default async function documentCreator({
   collectionId,
   parentDocumentId,
   templateDocument,
+  importId,
   createdAt,
   // allows override for import
   updatedAt,
@@ -19,25 +41,7 @@ export default async function documentCreator({
   source,
   ip,
   transaction,
-}: {
-  id?: string;
-  title: string;
-  text: string;
-  publish?: boolean;
-  collectionId: string;
-  parentDocumentId?: string;
-  templateDocument?: Document | null;
-  publishedAt?: Date;
-  template?: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-  index?: number;
-  user: User;
-  editorVersion?: string;
-  source?: "import";
-  ip?: string;
-  transaction: Transaction;
-}): Promise<Document> {
+}: Props): Promise<Document> {
   const templateId = templateDocument ? templateDocument.id : undefined;
   const document = await Document.create(
     {
@@ -54,7 +58,10 @@ export default async function documentCreator({
       template,
       templateId,
       publishedAt,
-      title: templateDocument ? templateDocument.title : title,
+      importId,
+      title: templateDocument
+        ? DocumentHelper.replaceTemplateVariables(templateDocument.title, user)
+        : title,
       text: templateDocument ? templateDocument.text : text,
     },
     {
