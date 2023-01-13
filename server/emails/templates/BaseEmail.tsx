@@ -1,6 +1,6 @@
 import mailer from "@server/emails/mailer";
 import Logger from "@server/logging/Logger";
-import Metrics from "@server/logging/Metrics";
+import Metrics from "@server/logging/metrics";
 import Notification from "@server/models/Notification";
 import { taskQueue } from "@server/queues";
 import { TaskPriority } from "@server/queues/tasks/BaseTask";

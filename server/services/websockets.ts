@@ -5,7 +5,7 @@ import Koa from "koa";
 import IO from "socket.io";
 import { createAdapter } from "socket.io-redis";
 import Logger from "@server/logging/Logger";
-import Metrics from "@server/logging/Metrics";
+import Metrics from "@server/logging/metrics";
 import * as Tracing from "@server/logging/tracer";
 import { traceFunction } from "@server/logging/tracing";
 import { Document, Collection, View, User } from "@server/models";
@@ -95,7 +95,7 @@ export default function init(
 
   io.on("connection", (socket: SocketWithAuth) => {
     Metrics.increment("websockets.connected");
-    Metrics.gaugePerInstance("websockets.count", io.engine.clientsCount);
+    Metrics.gaugePerInstance("websockets.count", io["engine"].clientsCount);
 
     socket.on("authentication", async function (data) {
       try {

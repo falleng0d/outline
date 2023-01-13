@@ -1,7 +1,7 @@
 import Queue from "bull";
 import { snakeCase } from "lodash";
 import env from "@server/env";
-import Metrics from "@server/logging/Metrics";
+import Metrics from "@server/logging/metrics";
 import Redis from "../redis";
 import ShutdownHelper, { ShutdownOrder } from "./ShutdownHelper";
 
