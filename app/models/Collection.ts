@@ -1,11 +1,14 @@
 import { trim } from "lodash";
 import { action, computed, observable } from "mobx";
-import { CollectionPermission, FileOperationFormat } from "@shared/types";
+import {
+  CollectionPermission,
+  FileOperationFormat,
+  NavigationNode,
+} from "@shared/types";
 import { sortNavigationNodes } from "@shared/utils/collections";
-import CollectionsStore from "~/stores/CollectionsStore";
+import type CollectionsStore from "~/stores/CollectionsStore";
 import Document from "~/models/Document";
 import ParanoidModel from "~/models/ParanoidModel";
-import { NavigationNode } from "~/types";
 import { client } from "~/utils/ApiClient";
 import Field from "./decorators/Field";
 
@@ -14,9 +17,6 @@ export default class Collection extends ParanoidModel {
 
   @observable
   isSaving: boolean;
-
-  @observable
-  isLoadingUsers: boolean;
 
   @Field
   @observable

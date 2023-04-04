@@ -6,7 +6,6 @@ import * as React from "react";
 import { WithTranslation, withTranslation } from "react-i18next";
 import {
   Prompt,
-  Route,
   RouteComponentProps,
   StaticContext,
   withRouter,
@@ -14,34 +13,32 @@ import {
 } from "react-router";
 import styled from "styled-components";
 import breakpoint from "styled-components-breakpoint";
-import { Heading } from "@shared/editor/lib/getHeadings";
+import { NavigationNode } from "@shared/types";
+import { Heading } from "@shared/utils/ProsemirrorHelper";
 import { parseDomain } from "@shared/utils/domains";
 import getTasks from "@shared/utils/getTasks";
 import RootStore from "~/stores/RootStore";
 import Document from "~/models/Document";
 import Revision from "~/models/Revision";
 import DocumentMove from "~/scenes/DocumentMove";
+import DocumentPublish from "~/scenes/DocumentPublish";
 import Branding from "~/components/Branding";
 import ConnectionStatus from "~/components/ConnectionStatus";
 import ErrorBoundary from "~/components/ErrorBoundary";
 import Flex from "~/components/Flex";
 import LoadingIndicator from "~/components/LoadingIndicator";
-import Modal from "~/components/Modal";
 import PageTitle from "~/components/PageTitle";
 import PlaceholderDocument from "~/components/PlaceholderDocument";
 import RegisterKeyDown from "~/components/RegisterKeyDown";
 import withStores from "~/components/withStores";
 import type { Editor as TEditor } from "~/editor";
-import { NavigationNode } from "~/types";
 import { client } from "~/utils/ApiClient";
 import { replaceTitleVariables } from "~/utils/date";
 import { emojiToUrl } from "~/utils/emoji";
 import { isModKey } from "~/utils/keyboard";
 import {
-  documentMoveUrl,
   documentHistoryUrl,
   editDocumentUrl,
-  documentUrl,
   updateDocumentUrl,
 } from "~/utils/routeHelpers";
 import Container from "./Container";
@@ -103,9 +100,6 @@ class DocumentScene extends React.Component<Props> {
   isEmpty = true;
 
   @observable
-  lastRevision: number = this.props.document.revision;
-
-  @observable
   title: string = this.props.document.title;
 
   @observable
@@ -118,38 +112,8 @@ class DocumentScene extends React.Component<Props> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    const { auth, document, t } = this.props;
-
     if (prevProps.readOnly && !this.props.readOnly) {
       this.updateIsDirty();
-    }
-
-    if (this.props.readOnly || auth.team?.collaborativeEditing) {
-      this.lastRevision = document.revision;
-    }
-
-    if (
-      !this.props.readOnly &&
-      !auth.team?.collaborativeEditing &&
-      prevProps.document.revision !== this.lastRevision
-    ) {
-      if (auth.user && document.updatedBy.id !== auth.user.id) {
-        this.props.toasts.showToast(
-          t(`Document updated by {{userName}}`, {
-            userName: document.updatedBy.name,
-          }),
-          {
-            timeout: 30 * 1000,
-            type: "warning",
-            action: {
-              text: "Reload",
-              onClick: () => {
-                window.location.href = documentUrl(document);
-              },
-            },
-          }
-        );
-      }
     }
   }
 
@@ -225,15 +189,15 @@ class DocumentScene extends React.Component<Props> {
     }
   };
 
-  goToMove = (ev: KeyboardEvent) => {
-    if (!this.props.readOnly) {
-      return;
-    }
+  onMove = (ev: React.MouseEvent | KeyboardEvent) => {
     ev.preventDefault();
-    const { document, abilities } = this.props;
-
+    const { document, dialogs, t, abilities } = this.props;
     if (abilities.move) {
-      this.props.history.push(documentMoveUrl(document));
+      dialogs.openModal({
+        title: t("Move document"),
+        isCentered: true,
+        content: <DocumentMove document={document} />,
+      });
     }
   };
 
@@ -268,14 +232,23 @@ class DocumentScene extends React.Component<Props> {
 
   onPublish = (ev: React.MouseEvent | KeyboardEvent) => {
     ev.preventDefault();
-    const { document } = this.props;
+    const { document, dialogs, t } = this.props;
     if (document.publishedAt) {
       return;
     }
-    this.onSave({
-      publish: true,
-      done: true,
-    });
+
+    if (document?.collectionId) {
+      this.onSave({
+        publish: true,
+        done: true,
+      });
+    } else {
+      dialogs.openModal({
+        title: t("Publish document"),
+        isCentered: true,
+        content: <DocumentPublish document={document} />,
+      });
+    }
   };
 
   onToggleTableOfContents = (ev: KeyboardEvent) => {
@@ -325,13 +298,8 @@ class DocumentScene extends React.Component<Props> {
     this.isPublishing = !!options.publish;
 
     try {
-      const savedDocument = await document.save({
-        ...options,
-        lastRevision: this.lastRevision,
-      });
-
+      const savedDocument = await document.save(options);
       this.isEditorDirty = false;
-      this.lastRevision = savedDocument.revision;
 
       if (options.done) {
         this.props.history.push(savedDocument.url);
@@ -378,7 +346,7 @@ class DocumentScene extends React.Component<Props> {
   };
 
   onChange = (getEditorText: () => string) => {
-    const { document, auth } = this.props;
+    const { document } = this.props;
     this.getEditorText = getEditorText;
 
     // Keep derived task list in sync
@@ -386,25 +354,6 @@ class DocumentScene extends React.Component<Props> {
     const total = tasks?.length ?? 0;
     const completed = tasks?.filter((t) => t.completed).length ?? 0;
     document.updateTasks(total, completed);
-
-    // If the multiplayer editor is enabled we're done here as changes are saved
-    // through the persistence protocol. The rest of this method is legacy.
-    if (auth.team?.collaborativeEditing) {
-      return;
-    }
-
-    // document change while read only is presumed to be a checkbox edit,
-    // in that case we don't delay in saving for a better user experience.
-    if (this.props.readOnly) {
-      this.updateIsDirty();
-      this.onSave({
-        done: false,
-        autosave: true,
-      });
-    } else {
-      this.updateIsDirtyDebounced();
-      this.autosave();
-    }
   };
 
   onHeadingsChange = (headings: Heading[]) => {
@@ -442,14 +391,9 @@ class DocumentScene extends React.Component<Props> {
 
     const hasHeadings = this.headings.length > 0;
     const showContents =
-      ui.tocVisible &&
-      ((readOnly && hasHeadings) || team?.collaborativeEditing);
-    const collaborativeEditing =
-      team?.collaborativeEditing &&
-      !document.isArchived &&
-      !document.isDeleted &&
-      !revision &&
-      !isShare;
+      ui.tocVisible && ((readOnly && hasHeadings) || !readOnly);
+    const multiplayerEditor =
+      !document.isArchived && !document.isDeleted && !revision && !isShare;
 
     const canonicalUrl = shareId
       ? this.props.match.url
@@ -466,7 +410,7 @@ class DocumentScene extends React.Component<Props> {
             }}
           />
         )}
-        <RegisterKeyDown trigger="m" handler={this.goToMove} />
+        <RegisterKeyDown trigger="m" handler={this.onMove} />
         <RegisterKeyDown trigger="e" handler={this.goToEdit} />
         <RegisterKeyDown trigger="Escape" handler={this.goBack} />
         <RegisterKeyDown trigger="h" handler={this.goToHistory} />
@@ -492,21 +436,6 @@ class DocumentScene extends React.Component<Props> {
           column
           auto
         >
-          <Route
-            path={`${document.url}/move`}
-            component={() => (
-              <Modal
-                title={`Move ${document.noun}`}
-                onRequestClose={this.goBack}
-                isOpen
-              >
-                <DocumentMove
-                  document={document}
-                  onRequestClose={this.goBack}
-                />
-              </Modal>
-            )}
-          />
           <PageTitle
             title={document.titleWithDefault.replace(document.emoji || "", "")}
             favicon={document.emoji ? emojiToUrl(document.emoji) : undefined}
@@ -514,35 +443,12 @@ class DocumentScene extends React.Component<Props> {
           {(this.isUploading || this.isSaving) && <LoadingIndicator />}
           <Container justify="center" column auto>
             {!readOnly && (
-              <>
-                <Prompt
-                  when={
-                    this.isEditorDirty &&
-                    !this.isUploading &&
-                    !team?.collaborativeEditing
-                  }
-                  message={(location, action) => {
-                    if (
-                      // a URL replace matching the current document indicates a title change
-                      // no guard is needed for this transition
-                      action === "REPLACE" &&
-                      location.pathname === editDocumentUrl(document)
-                    ) {
-                      return true;
-                    }
-
-                    return t(
-                      `You have unsaved changes.\nAre you sure you want to discard them?`
-                    ) as string;
-                  }}
-                />
-                <Prompt
-                  when={this.isUploading && !this.isEditorDirty}
-                  message={t(
-                    `Images are still uploading.\nAre you sure you want to discard them?`
-                  )}
-                />
-              </>
+              <Prompt
+                when={this.isUploading && !this.isEditorDirty}
+                message={t(
+                  `Images are still uploading.\nAre you sure you want to discard them?`
+                )}
+              />
             )}
             <Header
               document={document}
@@ -586,7 +492,7 @@ class DocumentScene extends React.Component<Props> {
                         id={document.id}
                         key={embedsDisabled ? "disabled" : "enabled"}
                         ref={this.editor}
-                        multiplayer={collaborativeEditing}
+                        multiplayer={multiplayerEditor}
                         shareId={shareId}
                         isDraft={document.isDraft}
                         template={document.isTemplate}
@@ -646,19 +552,28 @@ class DocumentScene extends React.Component<Props> {
                 <Branding href="//matj.dev" />
               )}
           </Container>
+          {!isShare && (
+            <Footer>
+              <KeyboardShortcutsButton />
+              <ConnectionStatus />
+            </Footer>
+          )}
         </Background>
-        {!isShare && (
-          <>
-            <KeyboardShortcutsButton />
-            <ConnectionStatus />
-          </>
-        )}
       </ErrorBoundary>
     );
   }
 }
 
+const Footer = styled.div`
+  position: absolute;
+  width: 100%;
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+`;
+
 const Background = styled(Container)`
+  position: relative;
   background: ${(props) => props.theme.background};
   transition: ${(props) => props.theme.backgroundTransition};
 `;

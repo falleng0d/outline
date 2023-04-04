@@ -2,7 +2,8 @@ import * as Sentry from "@sentry/react";
 import invariant from "invariant";
 import { observable, action, computed, autorun, runInAction } from "mobx";
 import { getCookie, setCookie, removeCookie } from "tiny-cookie";
-import { TeamPreferences, UserPreferences } from "@shared/types";
+import { CustomTheme, TeamPreferences, UserPreferences } from "@shared/types";
+import Storage from "@shared/utils/Storage";
 import { getCookieDomain, parseDomain } from "@shared/utils/domains";
 import RootStore from "~/stores/RootStore";
 import Policy from "~/models/Policy";
@@ -11,7 +12,6 @@ import User from "~/models/User";
 import env from "~/env";
 import { client } from "~/utils/ApiClient";
 import Desktop from "~/utils/Desktop";
-import Storage from "~/utils/Storage";
 
 const AUTH_STORE = "AUTH_STORE";
 const NO_REDIRECT_PATHS = ["/", "/create", "/home"];
@@ -38,6 +38,7 @@ type Provider = {
 export type Config = {
   name?: string;
   logo?: string;
+  customTheme?: Partial<CustomTheme>;
   hostname?: string;
   providers: Provider[];
 };
@@ -127,7 +128,7 @@ export default class AuthStore {
     this.addPolicies(data.policies);
 
     if (this.token) {
-      setImmediate(() => this.fetch());
+      setTimeout(() => this.fetch(), 0);
     }
   }
 
@@ -269,7 +270,6 @@ export default class AuthStore {
     name?: string;
     avatarUrl?: string | null | undefined;
     sharing?: boolean;
-    collaborativeEditing?: boolean;
     defaultCollectionId?: string | null;
     subdomain?: string | null | undefined;
     allowedDomains?: string[] | null | undefined;

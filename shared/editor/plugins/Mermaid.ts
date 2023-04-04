@@ -49,18 +49,20 @@ function getNewState({
     const diagramDecoration = Decoration.widget(
       block.pos + block.node.nodeSize,
       () => {
-        const diagramWrapper = document.createElement("div");
-        diagramWrapper.classList.add("mermaid-diagram-wrapper");
+        const elementId = "mermaid-diagram-wrapper-" + diagramId;
+        const element =
+          document.getElementById(elementId) || document.createElement("div");
+        element.id = elementId;
+        element.classList.add("mermaid-diagram-wrapper");
 
         if (pluginState.diagramVisibility[diagramId] === false) {
-          diagramWrapper.classList.add("diagram-hidden");
-          return diagramWrapper;
+          element.classList.add("diagram-hidden");
+          return element;
+        } else {
+          element.classList.remove("diagram-hidden");
         }
 
-        import(
-          /* webpackChunkName: "mermaid" */
-          "mermaid"
-        ).then((module) => {
+        import("mermaid").then((module) => {
           module.default.initialize({
             startOnLoad: true,
             flowchart: {
@@ -69,7 +71,6 @@ function getNewState({
             // TODO: Make dynamic based on the width of the editor or remove in
             // the future if Mermaid is able to handle this automatically.
             gantt: {
-              // @ts-expect-error types do not include this property.
               useWidth: 700,
             },
             theme: pluginState.isDark ? "dark" : "default",
@@ -80,7 +81,7 @@ function getNewState({
               "mermaid-diagram-" + diagramId,
               block.node.textContent,
               (svgCode) => {
-                diagramWrapper.innerHTML = svgCode;
+                element.innerHTML = svgCode;
               }
             );
           } catch (error) {
@@ -89,12 +90,12 @@ function getNewState({
               "d" + "mermaid-diagram-" + diagramId
             );
             if (errorNode) {
-              diagramWrapper.appendChild(errorNode);
+              element.appendChild(errorNode);
             }
           }
         });
 
-        return diagramWrapper;
+        return element;
       },
       {
         diagramId,

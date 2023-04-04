@@ -1,8 +1,13 @@
 import { ParameterizedContext, DefaultContext } from "koa";
 import { IRouterParamContext } from "koa-router";
-import { Transaction } from "sequelize/types";
+import { Transaction } from "sequelize";
 import { z } from "zod";
-import { Client } from "@shared/types";
+import {
+  CollectionSort,
+  NavigationNode,
+  Client,
+  CollectionPermission,
+} from "@shared/types";
 import BaseSchema from "@server/routes/api/BaseSchema";
 import { AccountProvisionerResult } from "./commands/accountProvisioner";
 import { FileOperation, Team, User } from "./models";
@@ -274,6 +279,32 @@ export type PinEvent = BaseEvent & {
   collectionId?: string;
 };
 
+export type CommentUpdateEvent = BaseEvent & {
+  name: "comments.update";
+  modelId: string;
+  documentId: string;
+  actorId: string;
+  data: {
+    newMentionIds: string[];
+  };
+};
+
+export type CommentEvent =
+  | (BaseEvent & {
+      name: "comments.create";
+      modelId: string;
+      documentId: string;
+      actorId: string;
+    })
+  | CommentUpdateEvent
+  | (BaseEvent & {
+      name: "comments.delete";
+      modelId: string;
+      documentId: string;
+      actorId: string;
+      collectionId: string;
+    });
+
 export type StarEvent = BaseEvent & {
   name: "stars.create" | "stars.update" | "stars.delete";
   modelId: string;
@@ -327,6 +358,7 @@ export type Event =
   | AuthenticationProviderEvent
   | DocumentEvent
   | PinEvent
+  | CommentEvent
   | StarEvent
   | CollectionEvent
   | FileOperationEvent
@@ -342,4 +374,61 @@ export type Event =
 
 export type NotificationMetadata = {
   notificationId?: string;
+};
+
+export type JSONExportMetadata = {
+  /* The version of the export, allows updated structure in the future. */
+  exportVersion: number;
+  /* The version of the application that created the export. */
+  version: string;
+  /* The date the export was created. */
+  createdAt: string;
+  /* The ID of the user that created the export. */
+  createdById: string;
+  /* The email of the user that created the export. */
+  createdByEmail: string | null;
+};
+
+export type DocumentJSONExport = {
+  id: string;
+  urlId: string;
+  title: string;
+  data: Record<string, any>;
+  createdById: string;
+  createdByEmail: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  fullWidth: boolean;
+  template: boolean;
+  parentDocumentId: string | null;
+};
+
+export type AttachmentJSONExport = {
+  id: string;
+  documentId: string | null;
+  contentType: string;
+  name: string;
+  size: number;
+  key: string;
+};
+
+export type CollectionJSONExport = {
+  collection: {
+    id: string;
+    urlId: string;
+    name: string;
+    description: Record<string, any> | null;
+    permission?: CollectionPermission | null;
+    color: string;
+    icon?: string | null;
+    sort: CollectionSort;
+    documentStructure: NavigationNode[] | null;
+  };
+  documents: {
+    [id: string]: DocumentJSONExport;
+  };
+  attachments: {
+    [id: string]: AttachmentJSONExport;
+  };
 };

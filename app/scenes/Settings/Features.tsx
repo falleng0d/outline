@@ -3,6 +3,8 @@ import { BeakerIcon } from "outline-icons";
 import * as React from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { TeamPreference } from "@shared/types";
+import Badge from "~/components/Badge";
+import Flex from "~/components/Flex";
 import Heading from "~/components/Heading";
 import Scene from "~/components/Scene";
 import Switch from "~/components/Switch";
@@ -41,22 +43,38 @@ function Features() {
           the experience for all members of the workspace.
         </Trans>
       </Text>
-      {team.collaborativeEditing && (
-        <SettingRow
+      <SettingRow
+        name={TeamPreference.SeamlessEdit}
+        label={t("Seamless editing")}
+        description={t(
+          `When enabled documents are always editable for team members that have permission. When disabled there is a separate editing view.`
+        )}
+      >
+        <Switch
+          id={TeamPreference.SeamlessEdit}
           name={TeamPreference.SeamlessEdit}
-          label={t("Seamless editing")}
-          description={t(
-            `When enabled documents are always editable for team members that have permission. When disabled there is a separate editing view.`
-          )}
-        >
-          <Switch
-            id={TeamPreference.SeamlessEdit}
-            name={TeamPreference.SeamlessEdit}
-            checked={team.getPreference(TeamPreference.SeamlessEdit, true)}
-            onChange={handlePreferenceChange}
-          />
-        </SettingRow>
-      )}
+          checked={team.getPreference(TeamPreference.SeamlessEdit, true)}
+          onChange={handlePreferenceChange}
+        />
+      </SettingRow>
+      <SettingRow
+        name={TeamPreference.Commenting}
+        label={
+          <Flex align="center">
+            {t("Commenting")} <Badge>Beta</Badge>
+          </Flex>
+        }
+        description={t(
+          "When enabled team members can add comments to documents."
+        )}
+      >
+        <Switch
+          id={TeamPreference.Commenting}
+          name={TeamPreference.Commenting}
+          checked={team.getPreference(TeamPreference.Commenting, false)}
+          onChange={handlePreferenceChange}
+        />
+      </SettingRow>
       {team.avatarUrl && (
         <SettingRow
           name={TeamPreference.PublicBranding}

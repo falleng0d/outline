@@ -22,7 +22,7 @@ type Props = {
   /** Whether the document should be published to the collection */
   publish?: boolean;
   /** The ID of the collection to publish the document to */
-  collectionId?: string;
+  collectionId?: string | null;
   /** The IP address of the user creating the document */
   ip: string;
   /** The database transaction to run within */
@@ -53,7 +53,7 @@ export default async function documentUpdater({
   const previousTitle = document.title;
 
   if (title !== undefined) {
-    document.title = title;
+    document.title = title.trim();
   }
   if (editorVersion) {
     document.editorVersion = editorVersion;
@@ -65,13 +65,7 @@ export default async function documentUpdater({
     document.fullWidth = fullWidth;
   }
   if (text !== undefined) {
-    if (user.team?.collaborativeEditing) {
-      document = DocumentHelper.applyMarkdownToDocument(document, text, append);
-    } else if (append) {
-      document.text += text;
-    } else {
-      document.text = text;
-    }
+    document = DocumentHelper.applyMarkdownToDocument(document, text, append);
   }
 
   const changed = document.changed();

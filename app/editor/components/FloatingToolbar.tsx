@@ -1,9 +1,9 @@
 import { NodeSelection } from "prosemirror-state";
 import { CellSelection } from "prosemirror-tables";
 import * as React from "react";
-import { Portal } from "react-portal";
 import styled from "styled-components";
 import { depths } from "@shared/styles";
+import { Portal } from "~/components/Portal";
 import useComponentSize from "~/hooks/useComponentSize";
 import useEventListener from "~/hooks/useEventListener";
 import useMediaQuery from "~/hooks/useMediaQuery";
@@ -25,11 +25,9 @@ const defaultPosition = {
 
 function usePosition({
   menuRef,
-  isSelectingText,
   active,
 }: {
   menuRef: React.RefObject<HTMLDivElement>;
-  isSelectingText: boolean;
   active?: boolean;
 }) {
   const { view } = useEditor();
@@ -38,13 +36,7 @@ function usePosition({
   const viewportHeight = useViewportHeight();
   const isTouchDevice = useMediaQuery("(hover: none) and (pointer: coarse)");
 
-  if (
-    !active ||
-    !menuWidth ||
-    !menuHeight ||
-    !menuRef.current ||
-    isSelectingText
-  ) {
+  if (!active || !menuWidth || !menuHeight || !menuRef.current) {
     return defaultPosition;
   }
 
@@ -79,6 +71,15 @@ function usePosition({
     left: Math.min(fromPos.left, toPos.left),
     right: Math.max(fromPos.right, toPos.right),
   };
+
+  const offsetParent = menuRef.current.offsetParent
+    ? menuRef.current.offsetParent.getBoundingClientRect()
+    : ({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        top: 0,
+        left: 0,
+      } as DOMRect);
 
   // tables are an oddity, and need their own positioning logic
   const isColSelection =
@@ -116,8 +117,8 @@ function usePosition({
     const { left, top, width } = imageElement.getBoundingClientRect();
 
     return {
-      left: Math.round(left + width / 2 + window.scrollX - menuWidth / 2),
-      top: Math.round(top + window.scrollY - menuHeight),
+      left: Math.round(left + width / 2 - menuWidth / 2 - offsetParent.left),
+      top: Math.round(top - menuHeight - offsetParent.top),
       offset: 0,
       visible: true,
     };
@@ -132,8 +133,14 @@ function usePosition({
     // instances leave a margin
     const margin = 12;
     const left = Math.min(
-      window.innerWidth - menuWidth - margin,
-      Math.max(margin, centerOfSelection - menuWidth / 2)
+      Math.min(
+        offsetParent.x + offsetParent.width - menuWidth,
+        window.innerWidth - margin
+      ),
+      Math.max(
+        Math.max(offsetParent.x, margin),
+        centerOfSelection - menuWidth / 2
+      )
     );
     const top = Math.min(
       window.innerHeight - menuHeight - margin,
@@ -145,8 +152,8 @@ function usePosition({
     // of the selection still
     const offset = left - (centerOfSelection - menuWidth / 2);
     return {
-      left: Math.round(left + window.scrollX),
-      top: Math.round(top + window.scrollY),
+      left: Math.round(left - offsetParent.left),
+      top: Math.round(top - offsetParent.top),
       offset: Math.round(offset),
       visible: true,
     };
@@ -158,11 +165,14 @@ const FloatingToolbar = React.forwardRef(
     const menuRef = ref || React.createRef<HTMLDivElement>();
     const [isSelectingText, setSelectingText] = React.useState(false);
 
-    const position = usePosition({
+    let position = usePosition({
       menuRef,
-      isSelectingText,
       active: props.active,
     });
+
+    if (isSelectingText) {
+      position = defaultPosition;
+    }
 
     useEventListener("mouseup", () => {
       setSelectingText(false);

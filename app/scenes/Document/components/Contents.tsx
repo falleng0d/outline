@@ -102,6 +102,8 @@ const Sticky = styled.div`
   max-height: calc(100vh - 80px);
 
   background: ${(props) => props.theme.background};
+  transition: ${(props) => props.theme.backgroundTransition};
+
   margin-top: 72px;
   margin-right: 52px;
   min-width: 204px;
@@ -138,8 +140,7 @@ const ListItem = styled.li<{ level: number; active?: boolean }>`
 
   a {
     font-weight: ${(props) => (props.active ? "600" : "inherit")};
-    color: ${(props) =>
-      props.active ? props.theme.primary : props.theme.text};
+    color: ${(props) => (props.active ? props.theme.accent : props.theme.text)};
   }
 `;
 
@@ -148,7 +149,7 @@ const Link = styled.a`
   font-size: 14px;
 
   &:hover {
-    color: ${(props) => props.theme.primary};
+    color: ${(props) => props.theme.accent};
   }
 `;
 

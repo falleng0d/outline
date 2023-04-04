@@ -1,13 +1,13 @@
 import { observer } from "mobx-react";
 import * as React from "react";
 import { useLocation, RouteComponentProps, StaticContext } from "react-router";
+import { NavigationNode, TeamPreference } from "@shared/types";
 import Document from "~/models/Document";
 import Revision from "~/models/Revision";
 import Error404 from "~/scenes/Error404";
 import ErrorOffline from "~/scenes/ErrorOffline";
 import usePolicy from "~/hooks/usePolicy";
 import useStores from "~/hooks/useStores";
-import { NavigationNode } from "~/types";
 import Logger from "~/utils/Logger";
 import { NotFoundError, OfflineError } from "~/utils/errors";
 import history from "~/utils/history";
@@ -30,7 +30,6 @@ type Children = (options: {
   document: Document;
   revision: Revision | undefined;
   abilities: Record<string, boolean>;
-  isEditing: boolean;
   readOnly: boolean;
   onCreateLink: (title: string) => Promise<string>;
   sharedTree: NavigationNode | undefined;
@@ -45,6 +44,7 @@ function DataLoader({ match, children }: Props) {
     ui,
     views,
     shares,
+    comments,
     documents,
     auth,
     revisions,
@@ -158,6 +158,12 @@ function DataLoader({ match, children }: Props) {
       // Prevents unauthorized request to load share information for the document
       // when viewing a public share link
       if (can.read) {
+        if (team?.getPreference(TeamPreference.Commenting)) {
+          comments.fetchDocumentComments(document.id, {
+            limit: 100,
+          });
+        }
+
         shares.fetch(document.id).catch((err) => {
           if (!(err instanceof NotFoundError)) {
             throw err;
@@ -165,7 +171,7 @@ function DataLoader({ match, children }: Props) {
         });
       }
     }
-  }, [can.read, can.update, document, isEditRoute, shares, ui]);
+  }, [can.read, can.update, document, isEditRoute, comments, team, shares, ui]);
 
   if (error) {
     return error instanceof OfflineError ? <ErrorOffline /> : <Error404 />;
@@ -179,21 +185,12 @@ function DataLoader({ match, children }: Props) {
     );
   }
 
-  // We do not want to remount the document when changing from view->edit
-  // on the multiplayer flag as the doc is guaranteed to be upto date.
-  const key = team.collaborativeEditing
-    ? ""
-    : isEditing
-    ? "editing"
-    : "read-only";
-
   return (
-    <React.Fragment key={key}>
+    <React.Fragment>
       {children({
         document,
         revision,
         abilities: can,
-        isEditing,
         readOnly:
           !isEditing || !can.update || document.isArchived || !!revisionId,
         onCreateLink,

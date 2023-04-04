@@ -1,6 +1,6 @@
 import fs from "fs";
 import { truncate } from "lodash";
-import { FileOperationState } from "@shared/types";
+import { FileOperationState, NotificationEventType } from "@shared/types";
 import ExportFailureEmail from "@server/emails/templates/ExportFailureEmail";
 import ExportSuccessEmail from "@server/emails/templates/ExportSuccessEmail";
 import Logger from "@server/logging/Logger";
@@ -47,7 +47,7 @@ export default abstract class ExportTask extends BaseTask<Props> {
         state: FileOperationState.Creating,
       });
 
-      const filePath = await this.export(collections);
+      const filePath = await this.export(collections, fileOperation);
 
       Logger.info("task", `ExportTask uploading data for ${fileOperationId}`);
 
@@ -70,24 +70,28 @@ export default abstract class ExportTask extends BaseTask<Props> {
         url,
       });
 
-      await ExportSuccessEmail.schedule({
-        to: user.email,
-        userId: user.id,
-        id: fileOperation.id,
-        teamUrl: team.url,
-        teamId: team.id,
-      });
+      if (user.subscribedToEventType(NotificationEventType.ExportCompleted)) {
+        await new ExportSuccessEmail({
+          to: user.email,
+          userId: user.id,
+          id: fileOperation.id,
+          teamUrl: team.url,
+          teamId: team.id,
+        }).schedule();
+      }
     } catch (error) {
       await this.updateFileOperation(fileOperation, {
         state: FileOperationState.Error,
         error,
       });
-      await ExportFailureEmail.schedule({
-        to: user.email,
-        userId: user.id,
-        teamUrl: team.url,
-        teamId: team.id,
-      });
+      if (user.subscribedToEventType(NotificationEventType.ExportCompleted)) {
+        await new ExportFailureEmail({
+          to: user.email,
+          userId: user.id,
+          teamUrl: team.url,
+          teamId: team.id,
+        }).schedule();
+      }
       throw error;
     }
   }
@@ -98,7 +102,10 @@ export default abstract class ExportTask extends BaseTask<Props> {
    * @param collections The collections to export
    * @returns A promise that resolves to a temporary file path
    */
-  protected abstract export(collections: Collection[]): Promise<string>;
+  protected abstract export(
+    collections: Collection[],
+    fileOperation: FileOperation
+  ): Promise<string>;
 
   /**
    * Update the state of the underlying FileOperation in the database and send

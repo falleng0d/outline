@@ -1,8 +1,7 @@
-import path from "path";
 import invariant from "invariant";
 import { find, orderBy, filter, compact, omitBy } from "lodash";
 import { observable, action, computed, runInAction } from "mobx";
-import { DateFilter } from "@shared/types";
+import { DateFilter, NavigationNode } from "@shared/types";
 import { subtractDate } from "@shared/utils/date";
 import { bytesToHumanReadable } from "@shared/utils/files";
 import naturalSort from "@shared/utils/naturalSort";
@@ -12,13 +11,9 @@ import RootStore from "~/stores/RootStore";
 import Document from "~/models/Document";
 import Team from "~/models/Team";
 import env from "~/env";
-import {
-  FetchOptions,
-  PaginationParams,
-  SearchResult,
-  NavigationNode,
-} from "~/types";
+import { FetchOptions, PaginationParams, SearchResult } from "~/types";
 import { client } from "~/utils/ApiClient";
+import { extname } from "~/utils/files";
 
 type FetchPageParams = PaginationParams & {
   template?: boolean;
@@ -578,10 +573,10 @@ export default class DocumentsStore extends BaseStore<Document> {
   duplicate = async (document: Document): Promise<Document> => {
     const append = " (duplicate)";
     const res = await client.post("/documents.create", {
-      publish: !!document.publishedAt,
-      parentDocumentId: document.parentDocumentId,
-      collectionId: document.collectionId,
-      template: document.template,
+      publish: document.isTemplate,
+      parentDocumentId: null,
+      collectionId: document.isTemplate ? document.collectionId : null,
+      template: document.isTemplate,
       title: `${document.title.slice(
         0,
         DocumentValidation.maxTitleLength - append.length
@@ -608,7 +603,7 @@ export default class DocumentsStore extends BaseStore<Document> {
     if (
       file.type &&
       !this.importFileTypes.includes(file.type) &&
-      !this.importFileTypes.includes(path.extname(file.name))
+      !this.importFileTypes.includes(extname(file.name))
     ) {
       throw new Error(`The selected file type is not supported (${file.type})`);
     }
@@ -683,18 +678,26 @@ export default class DocumentsStore extends BaseStore<Document> {
       publish?: boolean;
       done?: boolean;
       autosave?: boolean;
-      lastRevision: number;
     }
   ) {
-    const document = await super.update(params, options);
+    this.isSaving = true;
 
-    // Because the collection object contains the url and title
-    // we need to ensure they are updated there as well.
-    const collection = this.getCollectionForDocument(document);
-    if (collection) {
-      collection.updateDocument(document);
+    try {
+      const res = await client.post(`/${this.apiEndpoint}.update`, {
+        ...params,
+        ...options,
+        apiVersion: 2,
+      });
+
+      invariant(res?.data, "Data should be available");
+      this.addPolicies(res.policies);
+      const document = this.add(res.data.document);
+      const collection = this.getCollectionForDocument(document);
+      collection?.updateFromJson(res.data.collection);
+      return document;
+    } finally {
+      this.isSaving = false;
     }
-    return document;
   }
 
   @action
@@ -763,16 +766,16 @@ export default class DocumentsStore extends BaseStore<Document> {
   unpublish = async (document: Document) => {
     const res = await client.post("/documents.unpublish", {
       id: document.id,
+      apiVersion: 2,
     });
+
     runInAction("Document#unpublish", () => {
       invariant(res?.data, "Data should be available");
-      document.updateFromJson(res.data);
+      document.updateFromJson(res.data.document);
+      const collection = this.getCollectionForDocument(document);
+      collection?.updateFromJson(res.data.collection);
       this.addPolicies(res.policies);
     });
-    const collection = this.getCollectionForDocument(document);
-    if (collection) {
-      collection.refresh();
-    }
   };
 
   star = (document: Document) => {

@@ -56,19 +56,14 @@ math-inline {
 
 }
 
-math-inline .math-render { 
+math-inline .math-render {
   display: inline-block;
   font-size: 0.85em;
 }
 
 math-inline .math-src .ProseMirror {
   display: inline;
-  border-radius: 4px;
-  border: 1px solid ${props.theme.codeBorder};
-  padding: 3px 4px;
   margin: 0px 3px;
-  font-family: ${props.theme.fontFamilyMono};
-  font-size: 80%;
 }
 
 math-block {
@@ -85,7 +80,7 @@ math-block.ProseMirror-selectednode {
   background: ${props.theme.codeBackground};
   padding: 0.75em 1em;
   font-family: ${props.theme.fontFamilyMono};
-  font-size: 80%;
+  font-size: 90%;
 }
 
 math-block .math-src .ProseMirror {
@@ -95,10 +90,6 @@ math-block .math-src .ProseMirror {
 
 math-block .katex-display {
   margin: 0;
-}
-
-p::selection, p > *::selection {
-  background-color: #c0c0c0;
 }
 
 .katex-html *::selection {
@@ -123,6 +114,17 @@ font-weight: ${props.theme.fontWeight};
 font-size: 1em;
 line-height: 1.6em;
 width: 100%;
+
+.mention {
+  background: ${props.theme.mentionBackground};
+  border-radius: 12px;
+  padding-bottom: 2px;
+  padding-top: 1px;
+  padding-left: 4px;
+  padding-right: 4px;
+  font-weight: 500;
+  font-size: 14px;
+}
 
 > div {
   background: transparent;
@@ -149,6 +151,10 @@ width: 100%;
   & > * {
     margin-top: .5em;
     margin-bottom: .5em;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 
   & > :first-child,
@@ -291,6 +297,7 @@ li {
   max-width: 100vw;
   clear: both;
   position: initial;
+  ${props.rtl ? `margin-right: var(--offset)` : `margin-left: var(--offset)`};
 
   img {
     max-width: 100vw;
@@ -562,6 +569,17 @@ h6 {
   opacity: 1;
 }
 
+.comment-marker {
+  border-bottom: 2px solid ${transparentize(0.5, props.theme.brand.marine)};
+  transition: background 100ms ease-in-out;
+  cursor: pointer;
+  border-radius: 2px;
+
+  &:hover {
+    background: ${transparentize(0.5, props.theme.brand.marine)};
+  }
+}
+
 .notice-block {
   display: flex;
   align-items: center;
@@ -670,24 +688,21 @@ strong {
 p {
   margin: 0;
   min-height: 1.6em;
+}
 
-  span:first-child + br:last-child {
-    display: none;
-  }
+.heading-content a,
+p a {
+  color: ${props.theme.text};
+  text-decoration: underline;
+  text-decoration-color: ${lighten(0.5, props.theme.text)};
+  text-decoration-thickness: 1px;
+  text-underline-offset: .15em;
+  font-weight: 500;
 
-  a {
-    color: ${props.theme.text};
+  &:hover {
     text-decoration: underline;
-    text-decoration-color: ${lighten(0.5, props.theme.text)};
+    text-decoration-color: ${props.theme.text};
     text-decoration-thickness: 1px;
-    text-underline-offset: .15em;
-    font-weight: 500;
-
-    &:hover {
-      text-decoration: underline;
-      text-decoration-color: ${props.theme.text};
-      text-decoration-thickness: 1px;
-    }
   }
 }
 
@@ -812,7 +827,7 @@ ul.checkbox_list li .checkbox {
   &[aria-checked=true] {
     opacity: 1;
     background-image: ${`url(
-        "data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3 0C1.34315 0 0 1.34315 0 3V11C0 12.6569 1.34315 14 3 14H11C12.6569 14 14 12.6569 14 11V3C14 1.34315 12.6569 0 11 0H3ZM4.26825 5.85982L5.95873 7.88839L9.70003 2.9C10.0314 2.45817 10.6582 2.36863 11.1 2.7C11.5419 3.03137 11.6314 3.65817 11.3 4.1L6.80002 10.1C6.41275 10.6164 5.64501 10.636 5.2318 10.1402L2.7318 7.14018C2.37824 6.71591 2.43556 6.08534 2.85984 5.73178C3.28412 5.37821 3.91468 5.43554 4.26825 5.85982Z' fill='${props.theme.primary.replace(
+        "data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3 0C1.34315 0 0 1.34315 0 3V11C0 12.6569 1.34315 14 3 14H11C12.6569 14 14 12.6569 14 11V3C14 1.34315 12.6569 0 11 0H3ZM4.26825 5.85982L5.95873 7.88839L9.70003 2.9C10.0314 2.45817 10.6582 2.36863 11.1 2.7C11.5419 3.03137 11.6314 3.65817 11.3 4.1L6.80002 10.1C6.41275 10.6164 5.64501 10.636 5.2318 10.1402L2.7318 7.14018C2.37824 6.71591 2.43556 6.08534 2.85984 5.73178C3.28412 5.37821 3.91468 5.43554 4.26825 5.85982Z' fill='${props.theme.accent.replace(
           "#",
           "%23"
         )}' /%3E%3C/svg%3E%0A"
@@ -853,13 +868,14 @@ hr.page-break:before {
   border-top: 1px dashed ${props.theme.horizontalRule};
 }
 
+.math-inline .math-src .ProseMirror,
 code {
   border-radius: 4px;
   border: 1px solid ${props.theme.codeBorder};
   background: ${props.theme.codeBackground};
   padding: 3px 4px;
   font-family: ${props.theme.fontFamilyMono};
-  font-size: 80%;
+  font-size: 90%;
 }
 
 mark {
@@ -966,7 +982,7 @@ mark {
     display: inline;
   }
 
-  &.code-hidden { 
+  &.code-hidden {
     button,
     select,
     button.show-diagram-button {
@@ -987,15 +1003,24 @@ mark {
   pre {
     padding-left: calc(var(--line-number-gutter-width, 0) * 1em + 1.5em);
   }
-}
 
-.code-block .line-numbers {
-  position: absolute;
-  left: 1em;
-  color: ${props.theme.textTertiary};
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  user-select: none;
+  &:after {
+    content: attr(data-line-numbers);
+    position: absolute;
+    left: 1em;
+    top: calc(1px + 0.75em);
+    width: calc(var(--line-number-gutter-width,0) * 1em + .25em);
+    word-break: break-all;
+    text-align: right;
+
+    font-family: ${props.theme.fontFamilyMono};
+    font-size: 13px;
+    line-height: 1.4em;
+    color: ${props.theme.textTertiary};
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
 }
 
 .mermaid-diagram-wrapper {
@@ -1440,6 +1465,15 @@ del[data-operation-index] {
   h5:not(.placeholder):before,
   h6:not(.placeholder):before {
     display: none;
+  }
+
+  .image {
+    page-break-inside: avoid;
+  }
+
+  .comment-marker {
+    border: 0;
+    background: none;
   }
 
   .page-break {

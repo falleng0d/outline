@@ -190,17 +190,17 @@ export const DocumentsUpdateSchema = BaseSchema.extend({
     /** Boolean to denote if the doc should be published */
     publish: z.boolean().optional(),
 
-    /** Revision to compare against document revision count */
-    lastRevision: z.number().optional(),
-
     /** Doc template Id */
     templateId: z.string().uuid().nullish(),
 
     /** Doc collection Id */
-    collectionId: z.string().uuid().optional(),
+    collectionId: z.string().uuid().nullish(),
 
     /** Boolean to denote if text should be appended */
     append: z.boolean().optional(),
+
+    /** Version of the API to be used */
+    apiVersion: z.number().optional(),
   }),
 }).refine((req) => !(req.body.append && !req.body.text), {
   message: "text is required while appending",
@@ -241,7 +241,10 @@ export const DocumentsDeleteSchema = BaseSchema.extend({
 export type DocumentsDeleteReq = z.infer<typeof DocumentsDeleteSchema>;
 
 export const DocumentsUnpublishSchema = BaseSchema.extend({
-  body: BaseIdSchema,
+  body: BaseIdSchema.extend({
+    /** Version of the API to be used */
+    apiVersion: z.number().optional(),
+  }),
 });
 
 export type DocumentsUnpublishReq = z.infer<typeof DocumentsUnpublishSchema>;
@@ -273,7 +276,7 @@ export const DocumentsCreateSchema = BaseSchema.extend({
     publish: z.boolean().optional(),
 
     /** Create Doc under this collection */
-    collectionId: z.string().uuid().optional(),
+    collectionId: z.string().uuid().nullish(),
 
     /** Create Doc under this parent */
     parentDocumentId: z.string().uuid().nullish(),
@@ -296,3 +299,12 @@ export const DocumentsCreateSchema = BaseSchema.extend({
   });
 
 export type DocumentsCreateReq = z.infer<typeof DocumentsCreateSchema>;
+
+export const DocumentsUsersSchema = BaseSchema.extend({
+  body: BaseIdSchema.extend({
+    /** Query term to search users by name */
+    query: z.string().optional(),
+  }),
+});
+
+export type DocumentsUsersReq = z.infer<typeof DocumentsUsersSchema>;

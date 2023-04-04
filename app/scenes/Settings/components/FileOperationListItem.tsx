@@ -37,14 +37,15 @@ const FileOperationListItem = ({ fileOperation, handleDelete }: Props) => {
     [FileOperationState.Creating]: <Spinner />,
     [FileOperationState.Uploading]: <Spinner />,
     [FileOperationState.Expired]: <ArchiveIcon color={theme.textTertiary} />,
-    [FileOperationState.Complete]: <DoneIcon color={theme.primary} />,
+    [FileOperationState.Complete]: <DoneIcon color={theme.accent} />,
     [FileOperationState.Error]: <WarningIcon color={theme.danger} />,
   };
 
   const formatMapping = {
+    [FileOperationFormat.JSON]: "JSON",
     [FileOperationFormat.MarkdownZip]: "Markdown",
     [FileOperationFormat.HTMLZip]: "HTML",
-    [FileOperationFormat.PDFZip]: "PDF",
+    [FileOperationFormat.PDF]: "PDF",
   };
 
   const format = formatMapping[fileOperation.format];
@@ -71,7 +72,7 @@ const FileOperationListItem = ({ fileOperation, handleDelete }: Props) => {
           &nbsp;
           <Time dateTime={fileOperation.createdAt} addSuffix shorten />
           {format ? <>&nbsp;•&nbsp;{format}</> : ""}
-          &nbsp;•&nbsp;{fileOperation.sizeInMB}
+          {fileOperation.size ? <>&nbsp;•&nbsp;{fileOperation.sizeInMB}</> : ""}
         </>
       }
       actions={

@@ -18,7 +18,7 @@ RUN yarn install --production=true --frozen-lockfile --network-timeout 1000000 &
   yarn cache clean
 
 # ---
-FROM node:16.14.2-alpine3.15 AS runner
+FROM node:18-alpine AS runner
 
 ARG APP_PATH
 WORKDIR $APP_PATH

@@ -18,10 +18,7 @@ export function createMathView(displayMode: boolean) {
     getPos: boolean | (() => number)
   ): MathView => {
     // dynamically load katex styles and fonts
-    import(
-      /* webpackChunkName: "katex" */
-      "katex/dist/katex.min.css"
-    );
+    import("katex/dist/katex.min.css");
 
     const pluginState = MATH_PLUGIN_KEY.getState(view.state);
     if (!pluginState) {
@@ -34,7 +31,13 @@ export function createMathView(displayMode: boolean) {
       node,
       view,
       getPos as () => number,
-      { katexOptions: { displayMode, macros: pluginState.macros } },
+      {
+        katexOptions: {
+          displayMode,
+          output: "html",
+          macros: pluginState.macros,
+        },
+      },
       MATH_PLUGIN_KEY,
       () => {
         nodeViews.splice(nodeViews.indexOf(nodeView));

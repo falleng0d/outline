@@ -1,5 +1,6 @@
 import queryString from "query-string";
 import Collection from "~/models/Collection";
+import Comment from "~/models/Comment";
 import Document from "~/models/Document";
 
 export function homePath(): string {
@@ -42,6 +43,10 @@ export function groupSettingsPath(): string {
   return "/settings/groups";
 }
 
+export function commentPath(document: Document, comment: Comment): string {
+  return `${documentUrl(document)}?commentId=${comment.id}`;
+}
+
 export function collectionUrl(url: string, section?: string): string {
   if (section) {
     return `${url}/${section}`;
@@ -66,10 +71,6 @@ export function documentUrl(doc: Document): string {
 
 export function editDocumentUrl(doc: Document): string {
   return `${doc.url}/edit`;
-}
-
-export function documentMoveUrl(doc: Document): string {
-  return `${doc.url}/move`;
 }
 
 export function documentInsightsUrl(doc: Document): string {
@@ -97,14 +98,16 @@ export function updateDocumentUrl(oldUrl: string, document: Document): string {
 }
 
 export function newDocumentPath(
-  collectionId: string,
+  collectionId?: string,
   params: {
     parentDocumentId?: string;
     templateId?: string;
     template?: boolean;
   } = {}
 ): string {
-  return `/collection/${collectionId}/new?${queryString.stringify(params)}`;
+  return collectionId
+    ? `/collection/${collectionId}/new?${queryString.stringify(params)}`
+    : `/doc/new`;
 }
 
 export function searchPath(
@@ -131,6 +134,10 @@ export function sharedDocumentPath(shareId: string, docPath?: string) {
 
 export function notFoundUrl(): string {
   return "/404";
+}
+
+export function urlify(path: string): string {
+  return `${window.location.host}${path}`;
 }
 
 export const matchDocumentSlug =

@@ -148,6 +148,17 @@ export class Environment {
   );
 
   /**
+   * The maximum number of network clients that can be connected to a single
+   * document at once. Defaults to 100.
+   */
+  @IsOptional()
+  @IsNumber()
+  public COLLABORATION_MAX_CLIENTS_PER_DOCUMENT = parseInt(
+    process.env.COLLABORATION_MAX_CLIENTS_PER_DOCUMENT || "100",
+    10
+  );
+
+  /**
    * The port that the server will listen on, defaults to 3000.
    */
   @IsNumber()
@@ -158,6 +169,12 @@ export class Environment {
    * Optional extra debugging. Comma separated
    */
   public DEBUG = process.env.DEBUG || "";
+
+  /**
+   * Configure lowest severity level for server logs
+   */
+  @IsIn(["error", "warn", "info", "http", "verbose", "debug", "silly"])
+  public LOG_LEVEL = process.env.LOG_LEVEL || "info";
 
   /**
    * How many processes should be spawned. As a reasonable rule divide your
@@ -243,15 +260,6 @@ export class Environment {
   );
 
   /**
-   * Because imports can be much larger than regular file attachments and are
-   * deleted automatically we allow an optional separate limit on the size of
-   * imports.
-   */
-  @IsNumber()
-  public MAXIMUM_IMPORT_SIZE =
-    this.toOptionalNumber(process.env.MAXIMUM_IMPORT_SIZE) ?? 5120000;
-
-  /**
    * An optional comma separated list of allowed domains.
    */
   public ALLOWED_DOMAINS =
@@ -263,6 +271,12 @@ export class Environment {
    * The host of your SMTP server for enabling emails.
    */
   public SMTP_HOST = process.env.SMTP_HOST;
+
+  /**
+   * Optional hostname of the client, used for identifying to the server
+   * defaults to hostname of the machine.
+   */
+  public SMTP_NAME = process.env.SMTP_NAME;
 
   /**
    * The port of your SMTP server.
@@ -545,7 +559,7 @@ export class Environment {
   @IsOptional()
   @IsNumber()
   public AWS_S3_UPLOAD_MAX_SIZE =
-    this.toOptionalNumber(process.env.AWS_S3_UPLOAD_MAX_SIZE) ?? 10000000000;
+    this.toOptionalNumber(process.env.AWS_S3_UPLOAD_MAX_SIZE) ?? 100000000;
 
   /**
    * Set default AWS S3 ACL for file attachments.
@@ -554,9 +568,28 @@ export class Environment {
   public AWS_S3_ACL = process.env.AWS_S3_ACL ?? "private";
 
   /**
+   * Because imports can be much larger than regular file attachments and are
+   * deleted automatically we allow an optional separate limit on the size of
+   * imports.
+   */
+  @IsNumber()
+  public MAXIMUM_IMPORT_SIZE = Math.max(
+    this.toOptionalNumber(process.env.MAXIMUM_IMPORT_SIZE) ?? 100000000,
+    this.AWS_S3_UPLOAD_MAX_SIZE
+  );
+
+  /**
    * The product name
    */
   public APP_NAME = "Outline";
+
+  /**
+   * Returns true if the current installation is the cloud hosted version at
+   * getoutline.com
+   */
+  public isCloudHosted() {
+    return this.DEPLOYMENT === "hosted";
+  }
 
   private toOptionalString(value: string | undefined) {
     return value ? value : undefined;

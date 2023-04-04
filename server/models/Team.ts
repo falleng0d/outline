@@ -20,11 +20,14 @@ import {
   AllowNull,
   AfterUpdate,
 } from "sequelize-typescript";
-import { CollectionPermission, TeamPreference } from "@shared/types";
+import {
+  CollectionPermission,
+  TeamPreference,
+  TeamPreferences,
+} from "@shared/types";
 import { getBaseDomain, RESERVED_SUBDOMAINS } from "@shared/utils/domains";
 import env from "@server/env";
 import DeleteAttachmentTask from "@server/queues/tasks/DeleteAttachmentTask";
-import isCloudHosted from "@server/utils/isCloudHosted";
 import parseAttachmentIds from "@server/utils/parseAttachmentIds";
 import Attachment from "./Attachment";
 import AuthenticationProvider from "./AuthenticationProvider";
@@ -39,8 +42,6 @@ import Length from "./validators/Length";
 import NotContainsUrl from "./validators/NotContainsUrl";
 
 const readFile = util.promisify(fs.readFile);
-
-export type TeamPreferences = Record<string, unknown>;
 
 @Scopes(() => ({
   withDomains: {
@@ -67,9 +68,9 @@ class Team extends ParanoidModel {
   @Unique
   @Length({
     min: 2,
-    max: isCloudHosted ? 32 : 255,
+    max: env.isCloudHosted() ? 32 : 255,
     msg: `subdomain must be between 2 and ${
-      isCloudHosted ? 32 : 255
+      env.isCloudHosted() ? 32 : 255
     } characters`,
   })
   @Is({
@@ -135,10 +136,6 @@ class Team extends ParanoidModel {
   @Column
   memberCollectionCreate: boolean;
 
-  @Default(true)
-  @Column
-  collaborativeEditing: boolean;
-
   @Default("member")
   @IsIn([["viewer", "member"]])
   @Column
@@ -185,7 +182,10 @@ class Team extends ParanoidModel {
    * @param value Sets the preference value
    * @returns The current team preferences
    */
-  public setPreference = (preference: TeamPreference, value: boolean) => {
+  public setPreference = <T extends keyof TeamPreferences>(
+    preference: T,
+    value: TeamPreferences[T]
+  ) => {
     if (!this.preferences) {
       this.preferences = {};
     }

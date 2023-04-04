@@ -27,7 +27,7 @@ class Team extends BaseModel {
 
   @Field
   @observable
-  collaborativeEditing: boolean;
+  commenting: boolean;
 
   @Field
   @observable
@@ -88,10 +88,7 @@ class Team extends BaseModel {
    */
   @computed
   get seamlessEditing(): boolean {
-    return (
-      this.collaborativeEditing &&
-      this.getPreference(TeamPreference.SeamlessEdit, true)
-    );
+    return !!this.getPreference(TeamPreference.SeamlessEdit, true);
   }
 
   /**
@@ -102,7 +99,10 @@ class Team extends BaseModel {
    * @param fallback An optional fallback value, defaults to false.
    * @returns The value
    */
-  getPreference(key: TeamPreference, fallback = false): boolean {
+  getPreference<T extends keyof TeamPreferences>(
+    key: T,
+    fallback = false
+  ): TeamPreferences[T] | false {
     return this.preferences?.[key] ?? fallback;
   }
 

@@ -34,6 +34,7 @@ import kotlin from "refractor/lang/kotlin";
 import lisp from "refractor/lang/lisp";
 import lua from "refractor/lang/lua";
 import markup from "refractor/lang/markup";
+import nix from "refractor/lang/nix";
 import objectivec from "refractor/lang/objectivec";
 import ocaml from "refractor/lang/ocaml";
 import perl from "refractor/lang/perl";
@@ -52,8 +53,9 @@ import visualbasic from "refractor/lang/visual-basic";
 import yaml from "refractor/lang/yaml";
 import zig from "refractor/lang/zig";
 
-import { UserPreferences } from "@shared/types";
 import { Dictionary } from "~/hooks/useDictionary";
+import { UserPreferences } from "../../types";
+import Storage from "../../utils/Storage";
 
 import toggleBlockType from "../commands/toggleBlockType";
 import { MarkdownSerializerState } from "../lib/markdown/serializer";
@@ -85,6 +87,7 @@ const DEFAULT_LANGUAGE = "javascript";
   lisp,
   lua,
   markup,
+  nix,
   objectivec,
   ocaml,
   perl,
@@ -220,7 +223,7 @@ export default class CodeFence extends Node {
   commands({ type, schema }: { type: NodeType; schema: Schema }) {
     return (attrs: Record<string, any>) =>
       toggleBlockType(type, schema.nodes.paragraph, {
-        language: localStorage?.getItem(PERSISTENCE_KEY) || DEFAULT_LANGUAGE,
+        language: Storage.get(PERSISTENCE_KEY, DEFAULT_LANGUAGE),
         ...attrs,
       });
   }
@@ -302,7 +305,7 @@ export default class CodeFence extends Node {
 
       view.dispatch(transaction);
 
-      localStorage?.setItem(PERSISTENCE_KEY, language);
+      Storage.set(PERSISTENCE_KEY, language);
     }
   };
 
@@ -364,7 +367,7 @@ export default class CodeFence extends Node {
   inputRules({ type }: { type: NodeType }) {
     return [
       textblockTypeInputRule(/^```$/, type, () => ({
-        language: localStorage?.getItem(PERSISTENCE_KEY) || DEFAULT_LANGUAGE,
+        language: Storage.get(PERSISTENCE_KEY, DEFAULT_LANGUAGE),
       })),
     ];
   }

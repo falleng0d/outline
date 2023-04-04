@@ -2,13 +2,12 @@ import * as React from "react";
 import styled from "styled-components";
 import useBoolean from "~/hooks/useBoolean";
 import Initials from "./Initials";
-import placeholder from "./placeholder.png";
 
 export interface IAvatar {
   avatarUrl: string | null;
-  color: string;
-  initial: string;
-  id: string;
+  color?: string;
+  initial?: string;
+  id?: string;
 }
 
 type Props = {
@@ -20,19 +19,20 @@ type Props = {
   showBorder?: boolean;
   onClick?: React.MouseEventHandler<HTMLImageElement>;
   className?: string;
+  style?: React.CSSProperties;
 };
 
 function Avatar(props: Props) {
-  const { icon, showBorder, model, ...rest } = props;
+  const { icon, showBorder, model, style, ...rest } = props;
   const src = props.src || model?.avatarUrl;
   const [error, handleError] = useBoolean(false);
 
   return (
-    <Relative>
-      {src ? (
+    <Relative style={style}>
+      {src && !error ? (
         <CircleImg
           onError={handleError}
-          src={error ? placeholder : src}
+          src={src}
           $showBorder={showBorder}
           {...rest}
         />
@@ -54,6 +54,7 @@ Avatar.defaultProps = {
 
 const Relative = styled.div`
   position: relative;
+  user-select: none;
   flex-shrink: 0;
 `;
 
@@ -62,7 +63,7 @@ const IconWrapper = styled.div`
   position: absolute;
   bottom: -2px;
   right: -2px;
-  background: ${(props) => props.theme.primary};
+  background: ${(props) => props.theme.accent};
   border: 2px solid ${(props) => props.theme.background};
   border-radius: 100%;
   width: 20px;
