@@ -2,7 +2,8 @@ import { Context, Next } from "koa";
 import { defaults } from "lodash";
 import env from "@server/env";
 import { RateLimitExceededError } from "@server/errors";
-import Metrics from "@server/logging/Metrics";
+import Logger from "@server/logging/Logger";
+import Metrics from "@server/logging/metrics";
 import Redis from "@server/redis";
 import RateLimiter from "@server/utils/RateLimiter";
 
